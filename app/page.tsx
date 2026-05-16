@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { CommandBar } from "@/components/command-bar"
 import { PipelineVisualization, type PipelineStep } from "@/components/pipeline-visualization"
 import { TypewriterLog } from "@/components/typewriter-log"
@@ -17,7 +17,14 @@ export default function HomePage() {
     deploymentUrl,
     startAudit,
     setTargetUrl,
+    customLogoUrl,
+    setCustomLogoUrl,
+    customHeroUrl,
+    setCustomHeroUrl,
   } = useProjectStore()
+
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isUploadingHero, setIsUploadingHero] = useState(false)
 
   // Map store state to pipeline steps
   const steps: PipelineStep[] = [
@@ -207,30 +214,66 @@ export default function HomePage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Logo */}
                   <div className="bg-white border border-neutral-300 p-4">
-                    <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider block mb-3">Logo</span>
-                    {auditResult.analysis.logoUrl ? (
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Logo</span>
+                      {(customLogoUrl || auditResult.analysis.logoUrl) && (
+                        <button onClick={() => setCustomLogoUrl(null)} className="font-mono text-[10px] text-neutral-400 hover:text-red-500">Clear</button>
+                      )}
+                    </div>
+                    {(customLogoUrl || auditResult.analysis.logoUrl) ? (
                       <div className="h-24 bg-neutral-50 border border-neutral-200 flex items-center justify-center p-3">
-                        <img src={auditResult.analysis.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                        <img src={customLogoUrl || auditResult.analysis.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
                       </div>
                     ) : (
                       <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
-                        <span className="font-mono text-xs text-neutral-400">No logo identified</span>
+                        <span className="font-mono text-xs text-neutral-400">No logo</span>
                       </div>
                     )}
+                    <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const f = e.target.files?.[0]; if (!f) return
+                        setIsUploadingLogo(true)
+                        try {
+                          const fd = new FormData(); fd.append("file", f)
+                          const res = await fetch("/api/upload", { method: "POST", body: fd })
+                          if (res.ok) { const d = await res.json(); setCustomLogoUrl(d.url) }
+                        } catch {}
+                        setIsUploadingLogo(false)
+                      }} />
+                      <span className="font-mono text-xs text-neutral-500">{isUploadingLogo ? "Uploading..." : "Upload or replace"}</span>
+                    </label>
                   </div>
 
                   {/* Hero */}
                   <div className="bg-white border border-neutral-300 p-4">
-                    <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider block mb-3">Hero Image</span>
-                    {auditResult.analysis.heroImageUrl ? (
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Hero Image</span>
+                      {(customHeroUrl || auditResult.analysis.heroImageUrl) && (
+                        <button onClick={() => setCustomHeroUrl(null)} className="font-mono text-[10px] text-neutral-400 hover:text-red-500">Clear</button>
+                      )}
+                    </div>
+                    {(customHeroUrl || auditResult.analysis.heroImageUrl) ? (
                       <div className="h-24 bg-neutral-50 border border-neutral-200 overflow-hidden">
-                        <img src={auditResult.analysis.heroImageUrl} alt="Hero" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                        <img src={customHeroUrl || auditResult.analysis.heroImageUrl} alt="Hero" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
                       </div>
                     ) : (
                       <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
-                        <span className="font-mono text-xs text-neutral-400">No hero image identified</span>
+                        <span className="font-mono text-xs text-neutral-400">No hero image</span>
                       </div>
                     )}
+                    <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const f = e.target.files?.[0]; if (!f) return
+                        setIsUploadingHero(true)
+                        try {
+                          const fd = new FormData(); fd.append("file", f)
+                          const res = await fetch("/api/upload", { method: "POST", body: fd })
+                          if (res.ok) { const d = await res.json(); setCustomHeroUrl(d.url) }
+                        } catch {}
+                        setIsUploadingHero(false)
+                      }} />
+                      <span className="font-mono text-xs text-neutral-500">{isUploadingHero ? "Uploading..." : "Upload or replace"}</span>
+                    </label>
                   </div>
                 </div>
               </section>
