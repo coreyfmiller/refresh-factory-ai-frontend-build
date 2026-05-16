@@ -202,13 +202,15 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-2xl space-y-8">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3">
-          <img src="/logo.png" alt="RefreshFactory.ai" className="h-10 w-auto" />
-          <span className="font-mono text-lg font-medium tracking-tight text-neutral-900">
-            RefreshFactory.ai
-          </span>
-        </div>
+        {/* Logo - only on idle */}
+        {step === "idle" && (
+          <div className="flex items-center justify-center gap-3">
+            <img src="/logo.png" alt="RefreshFactory.ai" className="h-10 w-auto" />
+            <span className="font-mono text-lg font-medium tracking-tight text-neutral-900">
+              RefreshFactory.ai
+            </span>
+          </div>
+        )}
 
         {/* Pipeline steps - show when past idle */}
         {step !== "idle" && <PipelineSteps currentStep={step} />}
@@ -314,20 +316,37 @@ export default function HomePage() {
 
         {/* Generating log */}
         {step === "generating" && (
-          <div className="bg-white border border-neutral-300 p-4">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200">
-              <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Generating</span>
-              <Loader2 className="w-3 h-3 text-[#D97706] animate-spin" />
+          <div className="space-y-4">
+            <div className="bg-white border border-neutral-300 p-6 text-center space-y-4">
+              <Loader2 className="w-6 h-6 text-neutral-400 animate-spin mx-auto" />
+              <div>
+                <p className="font-mono text-sm text-neutral-900">Building your new site...</p>
+                <p className="font-mono text-xs text-neutral-500 mt-1">This typically takes 3-5 minutes. Sit tight.</p>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-1 bg-neutral-200 overflow-hidden">
+                <motion.div
+                  className="h-full bg-neutral-900"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "90%" }}
+                  transition={{ duration: 180, ease: "linear" }}
+                />
+              </div>
             </div>
-            <div ref={logRef} className="h-32 overflow-y-auto font-mono text-xs leading-relaxed">
-              {logs.map((log, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 mb-1">
-                  <span className="text-neutral-400 select-none">[{String(i + 1).padStart(2, "0")}]</span>
-                  <span className="text-neutral-700">{log}</span>
-                </motion.div>
-              ))}
+
+            <div className="bg-white border border-neutral-300 p-4">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200">
+                <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">System Log</span>
+              </div>
+              <div ref={logRef} className="h-24 overflow-y-auto font-mono text-xs leading-relaxed">
+                {logs.map((log, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 mb-1">
+                    <span className="text-neutral-400 select-none">[{String(i + 1).padStart(2, "0")}]</span>
+                    <span className="text-neutral-700">{log}</span>
+                  </motion.div>
+                ))}
+              </div>
             </div>
-            <p className="mt-3 font-mono text-[10px] text-neutral-400">This typically takes 2-3 minutes...</p>
           </div>
         )}
       </div>
