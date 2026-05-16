@@ -26,6 +26,7 @@ export default function HomePage() {
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [isUploadingHero, setIsUploadingHero] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)
 
   // Map store state to pipeline steps
   const steps: PipelineStep[] = [
@@ -286,6 +287,21 @@ export default function HomePage() {
                     </label>
                   </div>
                 </div>
+              </section>
+
+              {/* v0 Prompt Preview */}
+              <section>
+                <button
+                  onClick={() => setShowPrompt(!showPrompt)}
+                  className="font-mono text-xs text-neutral-500 uppercase tracking-widest hover:text-neutral-900 mb-4 flex items-center gap-2"
+                >
+                  {showPrompt ? "▼" : "▶"} v0 Prompt
+                </button>
+                {showPrompt && (
+                  <pre className="bg-white border border-neutral-300 p-4 font-mono text-xs text-neutral-700 whitespace-pre-wrap overflow-auto max-h-48">
+                    {auditResult.analysis.v0Prompt}
+                  </pre>
+                )}
               </section>
 
               {/* All Media */}
