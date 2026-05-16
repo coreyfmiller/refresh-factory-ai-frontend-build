@@ -267,13 +267,13 @@ export default function HomePage() {
                     <span className="font-mono text-sm text-neutral-900">{siteMeta.email}</span>
                   </div>
                 )}
-                {siteMeta.imageCount > 0 && (
+                {(siteMeta.imageCount ?? 0) > 0 && (
                   <div>
                     <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Images Found</span>
                     <span className="font-mono text-sm text-neutral-900">{siteMeta.imageCount}</span>
                   </div>
                 )}
-                {siteMeta.navLinks.length > 0 && (
+                {(siteMeta.navLinks?.length ?? 0) > 0 && (
                   <div>
                     <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Pages</span>
                     <span className="font-mono text-sm text-neutral-900">{siteMeta.navLinks.length}</span>
@@ -282,7 +282,7 @@ export default function HomePage() {
               </div>
 
               {/* Navigation */}
-              {siteMeta.navLinks.length > 0 && (
+              {(siteMeta.navLinks?.length ?? 0) > 0 && (
                 <div className="pt-4 border-t border-neutral-100">
                   <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Navigation</span>
                   <div className="flex flex-wrap gap-1.5">
@@ -294,7 +294,7 @@ export default function HomePage() {
               )}
 
               {/* Services/Sections */}
-              {siteMeta.services.length > 0 && (
+              {(siteMeta.services?.length ?? 0) > 0 && (
                 <div className="pt-4 border-t border-neutral-100">
                   <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Sections & Services</span>
                   <div className="flex flex-wrap gap-1.5">
@@ -306,7 +306,7 @@ export default function HomePage() {
               )}
 
               {/* Social */}
-              {siteMeta.socialLinks.length > 0 && (
+              {(siteMeta.socialLinks?.length ?? 0) > 0 && (
                 <div className="pt-4 border-t border-neutral-100">
                   <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Social</span>
                   <div className="flex flex-wrap gap-2">
