@@ -239,17 +239,84 @@ export default function HomePage() {
         )}
 
         {/* Summary */}
-        {step === "summary" && (
+        {step === "summary" && siteMeta && (
           <div className="space-y-6">
-            <div className="bg-white border border-neutral-300 p-6">
-              <p className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest mb-4">Analysis Complete</p>
-              <div className="space-y-2">
-                <p className="font-mono text-sm text-neutral-900 font-medium">{siteMeta?.title || targetUrl}</p>
-                {siteMeta?.description && (
-                  <p className="font-sans text-sm text-neutral-600 leading-relaxed">{siteMeta.description}</p>
+            <div className="bg-white border border-neutral-300 p-6 space-y-5">
+              <p className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Analysis Complete</p>
+
+              {/* Title & Description */}
+              <div>
+                <p className="font-mono text-lg text-neutral-900 font-medium">{siteMeta.title || targetUrl}</p>
+                {siteMeta.description && (
+                  <p className="font-sans text-sm text-neutral-600 mt-1 leading-relaxed">{siteMeta.description}</p>
                 )}
-                <p className="font-mono text-xs text-neutral-400 mt-3">{targetUrl}</p>
+                <p className="font-mono text-[10px] text-neutral-400 mt-2">{targetUrl}</p>
               </div>
+
+              {/* Key Info Grid */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-100">
+                {siteMeta.phone && (
+                  <div>
+                    <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Phone</span>
+                    <span className="font-mono text-sm text-neutral-900">{siteMeta.phone}</span>
+                  </div>
+                )}
+                {siteMeta.email && (
+                  <div>
+                    <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Email</span>
+                    <span className="font-mono text-sm text-neutral-900">{siteMeta.email}</span>
+                  </div>
+                )}
+                {siteMeta.imageCount > 0 && (
+                  <div>
+                    <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Images Found</span>
+                    <span className="font-mono text-sm text-neutral-900">{siteMeta.imageCount}</span>
+                  </div>
+                )}
+                {siteMeta.navLinks.length > 0 && (
+                  <div>
+                    <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-1">Pages</span>
+                    <span className="font-mono text-sm text-neutral-900">{siteMeta.navLinks.length}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              {siteMeta.navLinks.length > 0 && (
+                <div className="pt-4 border-t border-neutral-100">
+                  <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Navigation</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {siteMeta.navLinks.map((link, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-neutral-100 border border-neutral-200 font-mono text-[10px] text-neutral-700">{link}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Services/Sections */}
+              {siteMeta.services.length > 0 && (
+                <div className="pt-4 border-t border-neutral-100">
+                  <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Sections & Services</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {siteMeta.services.map((s, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-neutral-50 border border-neutral-200 font-mono text-[10px] text-neutral-600">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Social */}
+              {siteMeta.socialLinks.length > 0 && (
+                <div className="pt-4 border-t border-neutral-100">
+                  <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block mb-2">Social</span>
+                  <div className="flex flex-wrap gap-2">
+                    {siteMeta.socialLinks.map((link, i) => {
+                      const platform = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok"].find(p => link.includes(p)) || "link"
+                      return <span key={i} className="font-mono text-[10px] text-neutral-500 capitalize">{platform}</span>
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <motion.button

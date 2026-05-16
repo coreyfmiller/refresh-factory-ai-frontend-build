@@ -19,7 +19,19 @@ export interface ProjectState {
 
   // Input
   targetUrl: string;
-  siteMeta: { title: string; description: string } | null;
+  siteMeta: {
+    title: string;
+    description: string;
+    headings: string[];
+    navLinks: string[];
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    imageCount: number;
+    services: string[];
+    socialLinks: string[];
+    excerpt: string;
+  } | null;
 
   // Builds
   builds: Build[];
