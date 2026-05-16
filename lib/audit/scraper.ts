@@ -437,7 +437,7 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
     ogImage,
     favicon,
     logos: [...new Set(logos)].slice(0, 5),
-    images: [...new Set(images)].slice(0, 25),
+    images: [...new Set(images)].slice(0, 30),
     colors: styles.colors,
     fonts: styles.fonts,
     headings: headings.slice(0, 20),

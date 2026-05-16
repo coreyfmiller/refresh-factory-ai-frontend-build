@@ -291,18 +291,45 @@ export default function HomePage() {
               {/* All Media */}
               {auditResult.scraped.images.length > 0 && (
                 <section>
-                  <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+                  <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-2">
                     All Media ({auditResult.scraped.images.length} items)
+                  </p>
+                  <p className="font-mono text-[10px] text-neutral-400 mb-4">
+                    Click an image to set as Hero or Logo
                   </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                     {auditResult.scraped.images.map((img: string, i: number) => {
                       const classification = auditResult.analysis.allImages?.find((ai: { url: string; type: string }) => ai.url === img)
+                      const isCurrentHero = img === (customHeroUrl || auditResult.analysis.heroImageUrl)
+                      const isCurrentLogo = img === (customLogoUrl || auditResult.analysis.logoUrl)
                       return (
-                        <div key={i} className="relative">
-                          <div className="aspect-square bg-white border border-neutral-300 overflow-hidden">
+                        <div key={i} className="relative group">
+                          <div className={`aspect-square bg-white border overflow-hidden cursor-pointer ${isCurrentHero ? "border-[#2563EB] ring-2 ring-[#2563EB]/30" : isCurrentLogo ? "border-[#D97706] ring-2 ring-[#D97706]/30" : "border-neutral-300"}`}>
                             <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "" }} />
                           </div>
-                          {classification && classification.type !== "other" && (
+                          {/* Hover actions */}
+                          <div className="absolute inset-0 bg-neutral-900/0 group-hover:bg-neutral-900/80 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                            <button
+                              onClick={() => setCustomHeroUrl(img)}
+                              className="px-2 py-1 bg-white text-neutral-900 font-mono text-[9px] uppercase hover:bg-[#2563EB] hover:text-white transition-colors"
+                            >
+                              Hero
+                            </button>
+                            <button
+                              onClick={() => setCustomLogoUrl(img)}
+                              className="px-2 py-1 bg-white text-neutral-900 font-mono text-[9px] uppercase hover:bg-[#D97706] hover:text-white transition-colors"
+                            >
+                              Logo
+                            </button>
+                          </div>
+                          {/* Labels */}
+                          {isCurrentHero && (
+                            <span className="absolute top-0 left-0 right-0 bg-[#2563EB] text-white font-mono text-[8px] text-center py-0.5 uppercase">Hero</span>
+                          )}
+                          {isCurrentLogo && (
+                            <span className="absolute top-0 left-0 right-0 bg-[#D97706] text-white font-mono text-[8px] text-center py-0.5 uppercase">Logo</span>
+                          )}
+                          {classification && classification.type !== "other" && !isCurrentHero && !isCurrentLogo && (
                             <span className="absolute bottom-0 left-0 right-0 bg-neutral-900/80 text-white font-mono text-[8px] text-center py-0.5 uppercase">
                               {classification.type}
                             </span>
