@@ -2,30 +2,36 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Loader2, RefreshCw, Github, ExternalLink, Download, RotateCcw, Check } from "lucide-react"
+import { Loader2, RefreshCw, Github, ExternalLink, Download, RotateCcw, Check, ArrowRight } from "lucide-react"
 import { useProjectStore } from "@/lib/store"
 
 const SCAN_MESSAGES = [
   "Connecting to target domain...",
-  "Analyzing site structure...",
+  "Resolving DNS records...",
+  "Analyzing HTML structure...",
   "Extracting brand identity...",
   "Cataloging content assets...",
   "Mapping navigation hierarchy...",
   "Evaluating design patterns...",
   "Processing typography stack...",
+  "Scanning media library...",
   "Compiling business summary...",
+  "Analysis complete.",
 ]
 
 const GENERATE_MESSAGES = [
   "Initializing AI design engine...",
+  "Analyzing brand guidelines...",
   "Generating responsive layouts...",
   "Building component architecture...",
   "Applying modern design system...",
-  "Optimizing for performance...",
-  "Rendering final output...",
+  "Rendering hero section...",
+  "Constructing navigation...",
+  "Building service sections...",
+  "Optimizing for mobile...",
+  "Compiling final build...",
 ]
 
-// Pipeline steps component
 function PipelineSteps({ currentStep }: { currentStep: string }) {
   const steps = [
     { id: "scanning", label: "Scan" },
@@ -33,27 +39,24 @@ function PipelineSteps({ currentStep }: { currentStep: string }) {
     { id: "generating", label: "Generate" },
     { id: "preview", label: "Live" },
   ]
-
   const order = ["idle", "scanning", "summary", "generating", "preview"]
   const currentIndex = order.indexOf(currentStep)
 
   return (
-    <div className="flex items-center justify-center gap-1 mb-8">
+    <div className="flex items-center justify-center gap-1">
       {steps.map((step, i) => {
         const stepIndex = order.indexOf(step.id)
         const isComplete = stepIndex < currentIndex
         const isActive = step.id === currentStep
         return (
           <div key={step.id} className="flex items-center">
-            {i > 0 && (
-              <div className={`w-8 h-px mx-1 ${isComplete ? "bg-[#16A34A]" : "bg-neutral-300"}`} />
-            )}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 border font-mono text-xs uppercase tracking-wider ${
+            {i > 0 && <div className={`w-6 h-px mx-0.5 ${isComplete ? "bg-[#16A34A]" : "bg-neutral-300"}`} />}
+            <div className={`flex items-center gap-1 px-2.5 py-1 border font-mono text-[10px] uppercase tracking-wider ${
               isComplete ? "bg-white border-[#16A34A] text-[#16A34A]" :
               isActive ? "bg-neutral-900 border-neutral-900 text-white" :
-              "bg-white border-neutral-300 text-neutral-400"
+              "bg-white border-neutral-200 text-neutral-400"
             }`}>
-              {isComplete && <Check className="w-3 h-3" />}
+              {isComplete && <Check className="w-2.5 h-2.5" />}
               {step.label}
             </div>
           </div>
@@ -65,31 +68,21 @@ function PipelineSteps({ currentStep }: { currentStep: string }) {
 
 export default function HomePage() {
   const {
-    step,
-    error,
-    targetUrl,
-    siteMeta,
-    builds,
-    activeBuildIndex,
-    githubUrl,
-    deploymentUrl,
-    isPushing,
-    isDeploying,
-    startBuild,
-    acceptAndGenerate,
-    tryAnother,
-    selectBuild,
-    pushToGitHub,
-    deployToVercel,
-    setTargetUrl,
-    reset,
+    step, error, targetUrl, siteMeta, builds, activeBuildIndex,
+    githubUrl, deploymentUrl, isPushing, isDeploying,
+    startBuild, acceptAndGenerate, tryAnother, selectBuild,
+    pushToGitHub, deployToVercel, setTargetUrl, reset,
   } = useProjectStore()
 
   const [url, setUrl] = useState("")
   const [logs, setLogs] = useState<string[]>([])
   const logRef = useRef<HTMLDivElement>(null)
-
   const activeBuild = builds[activeBuildIndex]
+
+  // Auto-reset broken state
+  useEffect(() => {
+    if (step !== "idle" && step !== "preview" && !targetUrl) reset()
+  }, [step, targetUrl, reset])
 
   // Animate log messages
   useEffect(() => {
@@ -102,7 +95,7 @@ export default function HomePage() {
           setLogs((prev) => [...prev, messages[i]])
           i++
         }
-      }, step === "scanning" ? 400 : 2000)
+      }, step === "scanning" ? 350 : 1500)
       return () => clearInterval(interval)
     }
   }, [step])
@@ -121,76 +114,59 @@ export default function HomePage() {
     startBuild()
   }
 
-  const isWorking = step === "scanning" || step === "generating"
-
-  // ===== PREVIEW MODE =====
+  // ===== PREVIEW MODE — full screen =====
   if (step === "preview" && activeBuild) {
     return (
       <div className="h-screen flex flex-col bg-[#F8F9FA]">
-        {/* Toolbar */}
-        <div className="flex-shrink-0 border-b border-neutral-300 bg-white px-4 py-2">
+        <div className="flex-shrink-0 border-b border-neutral-300 bg-white px-4 py-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src="/logo.png" alt="RF" className="h-6 w-auto" />
-              <span className="font-mono text-sm text-neutral-900 font-medium">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="RF" className="h-5 w-auto cursor-pointer" onClick={reset} />
+              <div className="w-px h-4 bg-neutral-200" />
+              <span className="font-mono text-xs text-neutral-700 font-medium truncate max-w-[200px]">
                 {siteMeta?.title || targetUrl}
               </span>
-              <span className="font-mono text-xs text-neutral-400">
-                Build {activeBuildIndex + 1} of {builds.length}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
               {builds.length > 1 && (
-                <div className="flex items-center gap-1 mr-2">
+                <div className="flex items-center gap-0.5 ml-2">
                   {builds.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectBuild(i)}
-                      className={`w-6 h-6 font-mono text-xs border ${
-                        i === activeBuildIndex ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
+                    <button key={i} onClick={() => selectBuild(i)}
+                      className={`w-5 h-5 font-mono text-[10px] border ${i === activeBuildIndex ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"}`}
+                    >{i + 1}</button>
                   ))}
                 </div>
               )}
+            </div>
 
-              <button onClick={tryAnother} disabled={isWorking} className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
-                <RefreshCw className="w-3.5 h-3.5" /> Try Another
+            <div className="flex items-center gap-1.5">
+              <button onClick={tryAnother} className="flex items-center gap-1 px-2.5 py-1.5 border border-neutral-200 bg-white font-mono text-[10px] text-neutral-600 hover:bg-neutral-50 uppercase tracking-wider">
+                <RefreshCw className="w-3 h-3" /> Rebuild
               </button>
-
-              <button onClick={() => pushToGitHub(siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")} disabled={isPushing} className={`flex items-center gap-1.5 px-3 py-1.5 border font-mono text-xs bg-white disabled:opacity-50 ${githubUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"}`}>
-                {isPushing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Github className="w-3.5 h-3.5" />}
-                {githubUrl ? "Pushed" : "Push"}
+              <button onClick={() => pushToGitHub(siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")} disabled={isPushing}
+                className={`flex items-center gap-1 px-2.5 py-1.5 border font-mono text-[10px] uppercase tracking-wider bg-white disabled:opacity-50 ${githubUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"}`}>
+                {isPushing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Github className="w-3 h-3" />}
+                {githubUrl ? "Done" : "Git"}
               </button>
-
-              <button onClick={() => deployToVercel(siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")} disabled={isDeploying || !githubUrl} className={`flex items-center gap-1.5 px-3 py-1.5 border font-mono text-xs bg-white disabled:opacity-50 ${deploymentUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"}`}>
-                {isDeploying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+              <button onClick={() => deployToVercel(siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")} disabled={isDeploying || !githubUrl}
+                className={`flex items-center gap-1 px-2.5 py-1.5 border font-mono text-[10px] uppercase tracking-wider bg-white disabled:opacity-50 ${deploymentUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"}`}>
+                {isDeploying ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
                 {deploymentUrl ? "Live" : "Deploy"}
               </button>
-
               {githubUrl && (
                 <button onClick={() => {
                   const name = (siteMeta?.title || "project").toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-")
                   const bat = `@echo off\r\ncd /d "%USERPROFILE%\\Desktop\\Projects"\r\nif not exist "${name}" (git clone ${githubUrl}.git) else (cd ${name} & git pull & cd ..)\r\nkiro "${name}"\r\n`
-                  const blob = new Blob([bat], { type: "application/bat" })
-                  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "open-in-kiro.bat"; a.click()
-                }} className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 hover:bg-neutral-50">
-                  <Download className="w-3.5 h-3.5" /> Kiro
+                  const blob = new Blob([bat], { type: "application/bat" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "open-in-kiro.bat"; a.click()
+                }} className="flex items-center gap-1 px-2.5 py-1.5 border border-neutral-200 bg-white font-mono text-[10px] text-neutral-600 hover:bg-neutral-50 uppercase tracking-wider">
+                  <Download className="w-3 h-3" /> Kiro
                 </button>
               )}
-
-              <div className="w-px h-5 bg-neutral-300 mx-1" />
-              <button onClick={reset} className="p-1.5 text-neutral-400 hover:text-neutral-600">
-                <RotateCcw className="w-3.5 h-3.5" />
+              <div className="w-px h-4 bg-neutral-200 mx-0.5" />
+              <button onClick={reset} className="p-1.5 text-neutral-400 hover:text-neutral-600" title="New project">
+                <RotateCcw className="w-3 h-3" />
               </button>
             </div>
           </div>
         </div>
-
-        {/* Full iframe */}
         <div className="flex-1">
           <iframe src={activeBuild.demoUrl} className="w-full h-full border-0" title="Preview" />
         </div>
@@ -198,49 +174,37 @@ export default function HomePage() {
     )
   }
 
-  // ===== INPUT / SCANNING / SUMMARY / GENERATING MODE =====
+  // ===== MAIN FLOW =====
   return (
-    <main className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Logo - only on idle */}
-        {step === "idle" && (
-          <div className="flex items-center justify-center gap-3">
-            <img src="/logo.png" alt="RefreshFactory.ai" className="h-10 w-auto" />
-            <span className="font-mono text-lg font-medium tracking-tight text-neutral-900">
-              RefreshFactory.ai
-            </span>
-          </div>
-        )}
+    <main className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center px-6 py-12">
+      <div className="w-full max-w-xl space-y-10">
+        {/* Header — logo always clickable to reset */}
+        <div className="flex flex-col items-center gap-4">
+          <img src="/logo.png" alt="RefreshFactory.ai" className="h-12 w-auto cursor-pointer" onClick={reset} />
+          {step === "idle" && (
+            <p className="text-center font-sans text-sm text-neutral-500">
+              Paste a URL. Get a modern rebuild in minutes.
+            </p>
+          )}
+          {step !== "idle" && <PipelineSteps currentStep={step} />}
+        </div>
 
-        {/* Pipeline steps - show when past idle */}
-        {step !== "idle" && <PipelineSteps currentStep={step} />}
-
-        {/* Tagline - only on idle */}
-        {step === "idle" && (
-          <p className="text-center font-sans text-neutral-600">
-            Paste a URL. Get a modern rebuild in minutes.
-          </p>
-        )}
-
-        {/* Input - show on idle */}
+        {/* URL Input — only on idle */}
         {step === "idle" && (
           <form onSubmit={handleSubmit}>
-            <div className="bg-white border border-neutral-300 p-1">
+            <div className="bg-white border border-neutral-300 p-1 shadow-sm">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-neutral-400 text-sm pl-3 select-none">$&gt;</span>
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="barrettqualitybuilders.ca"
+                  placeholder="yoursite.com"
+                  autoFocus
                   className="flex-1 bg-transparent font-mono text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none py-3"
                 />
-                <motion.button
-                  type="submit"
-                  disabled={!url.trim()}
-                  whileTap={{ x: 1, y: 1 }}
-                  className="px-6 py-2.5 bg-neutral-900 text-white font-mono text-sm uppercase tracking-wider disabled:opacity-30 hover:bg-neutral-800"
-                >
+                <motion.button type="submit" disabled={!url.trim()} whileTap={{ x: 1, y: 1 }}
+                  className="px-5 py-2.5 bg-neutral-900 text-white font-mono text-xs uppercase tracking-wider disabled:opacity-30 hover:bg-neutral-800">
                   Build
                 </motion.button>
               </div>
@@ -250,24 +214,24 @@ export default function HomePage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-white border border-red-300 p-3 flex items-center justify-between">
+          <div className="bg-white border border-red-200 p-4 flex items-center justify-between">
             <span className="font-mono text-xs text-red-600">{error}</span>
-            <button onClick={reset} className="font-mono text-xs text-neutral-500 hover:text-neutral-900">Reset</button>
+            <button onClick={reset} className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase">Reset</button>
           </div>
         )}
 
-        {/* Scanning log */}
+        {/* Scanning */}
         {step === "scanning" && (
-          <div className="bg-white border border-neutral-300 p-4">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200">
-              <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Scanning</span>
-              <Loader2 className="w-3 h-3 text-[#D97706] animate-spin" />
+          <div className="bg-white border border-neutral-300 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Loader2 className="w-3.5 h-3.5 text-[#D97706] animate-spin" />
+              <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Scanning {targetUrl}</span>
             </div>
-            <div ref={logRef} className="h-32 overflow-y-auto font-mono text-xs leading-relaxed">
+            <div ref={logRef} className="h-36 overflow-y-auto font-mono text-xs leading-relaxed">
               {logs.map((log, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 mb-1">
-                  <span className="text-neutral-400 select-none">[{String(i + 1).padStart(2, "0")}]</span>
-                  <span className="text-neutral-700">{log}</span>
+                <motion.div key={i} initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.15 }} className="flex gap-2 mb-0.5">
+                  <span className="text-neutral-300 select-none">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="text-neutral-600">{log}</span>
                 </motion.div>
               ))}
             </div>
@@ -278,71 +242,54 @@ export default function HomePage() {
         {step === "summary" && (
           <div className="space-y-6">
             <div className="bg-white border border-neutral-300 p-6">
-              <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">Site Summary</p>
-              <div className="space-y-3 font-mono text-sm">
-                <div>
-                  <span className="text-neutral-500">URL:</span>
-                  <span className="ml-2 text-neutral-900">{targetUrl}</span>
-                </div>
-                {siteMeta?.title && (
-                  <div>
-                    <span className="text-neutral-500">Title:</span>
-                    <span className="ml-2 text-neutral-900">{siteMeta.title}</span>
-                  </div>
-                )}
+              <p className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest mb-4">Analysis Complete</p>
+              <div className="space-y-2">
+                <p className="font-mono text-sm text-neutral-900 font-medium">{siteMeta?.title || targetUrl}</p>
                 {siteMeta?.description && (
-                  <div>
-                    <span className="text-neutral-500">Description:</span>
-                    <span className="ml-2 text-neutral-900">{siteMeta.description}</span>
-                  </div>
+                  <p className="font-sans text-sm text-neutral-600 leading-relaxed">{siteMeta.description}</p>
                 )}
+                <p className="font-mono text-xs text-neutral-400 mt-3">{targetUrl}</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <button onClick={reset} className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                ← Start Over
-              </button>
-              <motion.button
-                whileTap={{ x: 1, y: 1 }}
-                onClick={acceptAndGenerate}
-                className="px-6 py-2.5 bg-neutral-900 text-white font-mono text-sm uppercase tracking-wider hover:bg-neutral-800"
-              >
-                Accept & Generate →
-              </motion.button>
-            </div>
+            <motion.button
+              whileTap={{ x: 1, y: 1 }}
+              onClick={acceptAndGenerate}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-neutral-900 text-white font-mono text-sm uppercase tracking-wider hover:bg-neutral-800"
+            >
+              Generate Modern Rebuild <ArrowRight className="w-4 h-4" />
+            </motion.button>
+
+            <button onClick={reset} className="w-full text-center font-mono text-[10px] text-neutral-400 hover:text-neutral-600 uppercase tracking-wider">
+              Start Over
+            </button>
           </div>
         )}
 
-        {/* Generating log */}
+        {/* Generating */}
         {step === "generating" && (
           <div className="space-y-4">
-            <div className="bg-white border border-neutral-300 p-6 text-center space-y-4">
-              <Loader2 className="w-6 h-6 text-neutral-400 animate-spin mx-auto" />
-              <div>
-                <p className="font-mono text-sm text-neutral-900">Building your new site...</p>
-                <p className="font-mono text-xs text-neutral-500 mt-1">This typically takes 3-5 minutes. Sit tight.</p>
+            <div className="bg-white border border-neutral-300 p-8 text-center space-y-5">
+              <div className="relative w-12 h-12 mx-auto">
+                <Loader2 className="w-12 h-12 text-neutral-200 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 bg-neutral-900 rounded-sm" />
+                </div>
               </div>
-              {/* Progress bar */}
-              <div className="w-full h-1 bg-neutral-200 overflow-hidden">
-                <motion.div
-                  className="h-full bg-neutral-900"
-                  initial={{ width: "0%" }}
-                  animate={{ width: "90%" }}
-                  transition={{ duration: 180, ease: "linear" }}
-                />
+              <div>
+                <p className="font-mono text-sm text-neutral-900 font-medium">Building your new site</p>
+                <p className="font-sans text-xs text-neutral-500 mt-1">This typically takes 3–5 minutes. We&apos;ll show you the result as soon as it&apos;s ready.</p>
+              </div>
+              <div className="w-full h-0.5 bg-neutral-100 overflow-hidden rounded-full">
+                <motion.div className="h-full bg-neutral-900 rounded-full" initial={{ width: "0%" }} animate={{ width: "85%" }} transition={{ duration: 200, ease: "linear" }} />
               </div>
             </div>
 
-            <div className="bg-white border border-neutral-300 p-4">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200">
-                <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">System Log</span>
-              </div>
-              <div ref={logRef} className="h-24 overflow-y-auto font-mono text-xs leading-relaxed">
+            <div className="bg-neutral-50 border border-neutral-200 p-3">
+              <div ref={logRef} className="h-20 overflow-y-auto font-mono text-[10px] leading-relaxed">
                 {logs.map((log, i) => (
-                  <motion.div key={i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2 mb-1">
-                    <span className="text-neutral-400 select-none">[{String(i + 1).padStart(2, "0")}]</span>
-                    <span className="text-neutral-700">{log}</span>
+                  <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-neutral-400 mb-0.5">
+                    {log}
                   </motion.div>
                 ))}
               </div>
