@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type AppStep = "idle" | "scanning" | "generating" | "preview" | "error";
+export type AppStep = "idle" | "scanning" | "summary" | "generating" | "preview" | "error";
 
 export interface Build {
   id: string;
@@ -34,6 +34,7 @@ export interface ProjectState {
   // Actions
   setTargetUrl: (url: string) => void;
   startBuild: () => Promise<void>;
+  acceptAndGenerate: () => Promise<void>;
   tryAnother: () => Promise<void>;
   selectBuild: (index: number) => void;
   pushToGitHub: (projectName: string) => Promise<void>;
@@ -61,9 +62,9 @@ export const useProjectStore = create<ProjectState>()(
         const { targetUrl } = get();
         if (!targetUrl) return;
 
-        set({ step: "scanning", error: null });
+        set({ step: "scanning", error: null, siteMeta: null });
 
-        // Quick metadata fetch (for display theater)
+        // Quick metadata fetch (for display)
         try {
           const metaRes = await fetch("/api/meta", {
             method: "POST",
@@ -76,8 +77,15 @@ export const useProjectStore = create<ProjectState>()(
           }
         } catch {}
 
-        // Now generate with v0
-        set({ step: "generating" });
+        // Stop at summary — user must accept to continue
+        set({ step: "summary" });
+      },
+
+      acceptAndGenerate: async () => {
+        const { targetUrl } = get();
+        if (!targetUrl) return;
+
+        set({ step: "generating", error: null });
 
         try {
           const res = await fetch("/api/generate", {
