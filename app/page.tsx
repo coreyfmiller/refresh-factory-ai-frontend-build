@@ -1,442 +1,286 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { CommandBar } from "@/components/command-bar"
-import { PipelineVisualization, type PipelineStep } from "@/components/pipeline-visualization"
-import { TypewriterLog } from "@/components/typewriter-log"
-import { ActionBar } from "@/components/action-bar"
+import { useState, useEffect, useRef } from "react"
+import { motion } from "framer-motion"
+import { Loader2, RefreshCw, Github, ExternalLink, Download, RotateCcw } from "lucide-react"
 import { useProjectStore } from "@/lib/store"
+
+const SCAN_MESSAGES = [
+  "Connecting to target domain...",
+  "Analyzing site structure...",
+  "Extracting brand identity...",
+  "Cataloging content assets...",
+  "Mapping navigation hierarchy...",
+  "Evaluating design patterns...",
+  "Processing typography stack...",
+  "Scanning media library...",
+  "Compiling component inventory...",
+  "Preparing rebuild specification...",
+]
+
+const GENERATE_MESSAGES = [
+  "Initializing AI design engine...",
+  "Generating responsive layouts...",
+  "Building component architecture...",
+  "Applying modern design system...",
+  "Optimizing for performance...",
+  "Rendering final output...",
+]
 
 export default function HomePage() {
   const {
-    currentStep,
+    step,
     error,
-    auditResult,
-    demoUrl,
+    targetUrl,
+    siteMeta,
+    builds,
+    activeBuildIndex,
     githubUrl,
     deploymentUrl,
-    startAudit,
+    isPushing,
+    isDeploying,
+    startBuild,
+    tryAnother,
+    selectBuild,
+    pushToGitHub,
+    deployToVercel,
     setTargetUrl,
-    customLogoUrl,
-    setCustomLogoUrl,
-    customHeroUrl,
-    setCustomHeroUrl,
     reset,
   } = useProjectStore()
 
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-  const [isUploadingHero, setIsUploadingHero] = useState(false)
-  const [showPrompt, setShowPrompt] = useState(false)
+  const [url, setUrl] = useState("")
+  const [logs, setLogs] = useState<string[]>([])
+  const [projectName, setProjectName] = useState("")
+  const logRef = useRef<HTMLDivElement>(null)
 
-  // Map store state to pipeline steps
-  const steps: PipelineStep[] = [
-    { id: "audit", label: "Audit", status: getStatus("auditing") },
-    { id: "review", label: "Review", status: getStatus("reviewing") },
-    { id: "generate", label: "Generate", status: getStatus("generating") },
-    { id: "live", label: "Live", status: getStatus("workspace") },
-    { id: "github", label: "GitHub", status: githubUrl ? "complete" : currentStep === "workspace" ? "idle" : "idle" },
-    { id: "vercel", label: "Vercel", status: deploymentUrl ? "complete" : currentStep === "workspace" ? "idle" : "idle" },
-  ]
+  const activeBuild = builds[activeBuildIndex]
 
-  function getStatus(stepKey: string): "idle" | "active" | "complete" {
-    const order = ["idle", "auditing", "reviewing", "generating", "workspace"]
-    const stepIndex = order.indexOf(stepKey)
-    const currentIndex = order.indexOf(currentStep)
-    if (currentStep === "error") return "idle"
-    if (stepIndex < currentIndex) return "complete"
-    if (stepIndex === currentIndex) return "active"
-    return "idle"
-  }
-
-  // Build log messages based on current step
-  const logs: string[] = []
-  if (currentStep === "auditing") {
-    logs.push("Initializing diagnostic scan...")
-    logs.push("Connecting to target domain...")
-    logs.push("Analyzing HTML structure...")
-    logs.push("Extracting media assets...")
-    logs.push("Running AI classification...")
-  }
-  if (auditResult) {
-    logs.push(`Target: ${auditResult.scraped.url}`)
-    logs.push(`Business: ${auditResult.analysis.businessName}`)
-    logs.push(`Type: ${auditResult.analysis.businessType}`)
-    logs.push(`Images found: ${auditResult.scraped.images.length}`)
-    logs.push(`Services: ${auditResult.analysis.services?.join(", ") || "N/A"}`)
-    logs.push("Audit complete.")
-  }
-  if (currentStep === "generating") {
-    logs.push("Sending prompt to v0.app...")
-    logs.push("Generating modern rebuild...")
-    logs.push("This may take 2-3 minutes...")
-  }
-  if (demoUrl) {
-    logs.push("Generation complete.")
-    logs.push(`Preview: ${demoUrl}`)
-  }
-  if (error) {
-    logs.push(`ERROR: ${error}`)
-  }
-
-  const handleSubmit = async (url: string) => {
-    let normalizedUrl = url.trim()
-    if (!/^https?:\/\//i.test(normalizedUrl)) {
-      normalizedUrl = `https://${normalizedUrl}`
+  // Animate log messages during scanning/generating
+  useEffect(() => {
+    if (step === "scanning" || step === "generating") {
+      const messages = step === "scanning" ? SCAN_MESSAGES : GENERATE_MESSAGES
+      setLogs([])
+      let i = 0
+      const interval = setInterval(() => {
+        if (i < messages.length) {
+          setLogs((prev) => [...prev, messages[i]])
+          i++
+        }
+      }, step === "scanning" ? 400 : 2000)
+      return () => clearInterval(interval)
     }
-    setTargetUrl(normalizedUrl)
-    await startAudit()
+  }, [step])
+
+  // Auto-scroll log
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight
+    }
+  }, [logs])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!url.trim()) return
+    let normalized = url.trim()
+    if (!/^https?:\/\//i.test(normalized)) normalized = `https://${normalized}`
+    setTargetUrl(normalized)
+    setUrl("")
+    startBuild()
   }
 
-  const isProcessing = currentStep === "auditing" || currentStep === "generating"
-  const isComplete = currentStep === "workspace" || currentStep === "reviewing"
+  const isWorking = step === "scanning" || step === "generating"
 
-  return (
-    <main className="min-h-screen bg-[#F8F9FA]">
-      {/* Header */}
-      <header className="border-b border-neutral-300 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+  // Preview mode — maximize the iframe
+  if (step === "preview" && activeBuild) {
+    return (
+      <div className="h-screen flex flex-col bg-[#F8F9FA]">
+        {/* Thin toolbar */}
+        <div className="flex-shrink-0 border-b border-neutral-300 bg-white px-4 py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="RefreshFactory.ai" className="h-8 w-auto" />
-              <span className="font-mono text-sm font-medium tracking-tight">
-                RefreshFactory.ai
+            <div className="flex items-center gap-4">
+              <img src="/logo.png" alt="RF" className="h-6 w-auto" />
+              <span className="font-mono text-sm text-neutral-900 font-medium">
+                {siteMeta?.title || targetUrl}
+              </span>
+              <span className="font-mono text-xs text-neutral-400">
+                Build {activeBuildIndex + 1} of {builds.length}
               </span>
             </div>
-            <nav className="flex items-center gap-6">
-              <a href="/test-v0" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Test v0
-              </a>
-              <a href="#" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Docs
-              </a>
-              <a href="#" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Status
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
 
-      {/* Hero Section */}
-      <section className="py-16 md:py-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="mb-12">
-            <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
-              Automated Website Rebuilding Pipeline
-            </p>
-            <h1 className="font-mono text-3xl md:text-5xl font-bold text-neutral-900 leading-tight mb-6 text-balance">
-              Transform Legacy Websites<br />
-              Into Modern Applications
-            </h1>
-            <p className="font-sans text-lg text-neutral-600 max-w-2xl">
-              High-precision diagnostics. Intelligent asset extraction. Seamless AI-powered
-              rebuilding. Deploy to production in minutes.
-            </p>
-          </div>
-
-          {/* Command Bar */}
-          <div className="mb-12">
-            <CommandBar onSubmit={handleSubmit} isProcessing={isProcessing} />
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mb-8 bg-white border border-red-300 p-4">
-              <span className="font-mono text-xs text-red-600">{error}</span>
-            </div>
-          )}
-
-          {/* Pipeline Visualization */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">
-                Pipeline Status
-              </span>
-              {isProcessing && (
-                <span className="font-mono text-xs text-[#D97706]">
-                  [Running]
-                </span>
-              )}
-              {currentStep === "workspace" && (
-                <span className="font-mono text-xs text-[#16A34A]">
-                  [Complete]
-                </span>
-              )}
-            </div>
-            <PipelineVisualization steps={steps} />
-          </div>
-
-          {/* Typewriter Log */}
-          <TypewriterLog logs={logs} isActive={isProcessing} />
-
-          {/* Audit Results - appears after audit completes */}
-          {auditResult && (
-            <div className="mt-12 space-y-8">
-              {/* New Audit button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={reset}
-                  className="px-4 py-2 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 uppercase tracking-wider hover:bg-neutral-50 active:translate-x-px active:translate-y-px transition-transform"
-                >
-                  New Audit
-                </button>
-              </div>
-              {/* Business Identity */}
-              <section>
-                <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
-                  Business Identity
-                </p>
-                <div className="bg-white border border-neutral-300 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-mono text-xl font-bold text-neutral-900">
-                      {auditResult.analysis.businessName}
-                    </h2>
-                    <span className="font-mono text-xs text-neutral-500 uppercase px-2 py-1 border border-neutral-300">
-                      {auditResult.analysis.businessType}
-                    </span>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4 font-mono text-sm">
-                    {auditResult.analysis.tagline && (
-                      <div><span className="text-neutral-500">Tagline:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.tagline}</span></div>
-                    )}
-                    <div><span className="text-neutral-500">Headline:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.headline}</span></div>
-                    {auditResult.analysis.phoneNumber && (
-                      <div><span className="text-neutral-500">Phone:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.phoneNumber}</span></div>
-                    )}
-                    {auditResult.analysis.services?.length > 0 && (
-                      <div className="col-span-2">
-                        <span className="text-neutral-500">Services:</span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {auditResult.analysis.services.map((s: string, i: number) => (
-                            <span key={i} className="px-2 py-1 bg-neutral-100 border border-neutral-200 text-xs">{s}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+            <div className="flex items-center gap-2">
+              {/* Build selector */}
+              {builds.length > 1 && (
+                <div className="flex items-center gap-1 mr-2">
+                  {builds.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => selectBuild(i)}
+                      className={`w-6 h-6 font-mono text-xs border ${
+                        i === activeBuildIndex
+                          ? "bg-neutral-900 text-white border-neutral-900"
+                          : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-              </section>
-
-              {/* Identified Assets */}
-              <section>
-                <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
-                  AI-Identified Assets
-                </p>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Logo */}
-                  <div className="bg-white border border-neutral-300 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Logo</span>
-                      {(customLogoUrl || auditResult.analysis.logoUrl) && (
-                        <button onClick={() => setCustomLogoUrl(null)} className="font-mono text-[10px] text-neutral-400 hover:text-red-500">Clear</button>
-                      )}
-                    </div>
-                    {(customLogoUrl || auditResult.analysis.logoUrl) ? (
-                      <div className="h-24 bg-neutral-50 border border-neutral-200 flex items-center justify-center p-3">
-                        <img src={customLogoUrl || auditResult.analysis.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
-                      </div>
-                    ) : (
-                      <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
-                        <span className="font-mono text-xs text-neutral-400">No logo</span>
-                      </div>
-                    )}
-                    <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                        const f = e.target.files?.[0]; if (!f) return
-                        setIsUploadingLogo(true)
-                        try {
-                          const fd = new FormData(); fd.append("file", f)
-                          const res = await fetch("/api/upload", { method: "POST", body: fd })
-                          if (res.ok) { const d = await res.json(); setCustomLogoUrl(d.url) }
-                        } catch {}
-                        setIsUploadingLogo(false)
-                      }} />
-                      <span className="font-mono text-xs text-neutral-500">{isUploadingLogo ? "Uploading..." : "Upload or replace"}</span>
-                    </label>
-                  </div>
-
-                  {/* Hero */}
-                  <div className="bg-white border border-neutral-300 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Hero Image</span>
-                      {(customHeroUrl || auditResult.analysis.heroImageUrl) && (
-                        <button onClick={() => setCustomHeroUrl(null)} className="font-mono text-[10px] text-neutral-400 hover:text-red-500">Clear</button>
-                      )}
-                    </div>
-                    {(customHeroUrl || auditResult.analysis.heroImageUrl) ? (
-                      <div className="h-24 bg-neutral-50 border border-neutral-200 overflow-hidden">
-                        <img src={customHeroUrl || auditResult.analysis.heroImageUrl} alt="Hero" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
-                      </div>
-                    ) : (
-                      <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
-                        <span className="font-mono text-xs text-neutral-400">No hero image</span>
-                      </div>
-                    )}
-                    <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                        const f = e.target.files?.[0]; if (!f) return
-                        setIsUploadingHero(true)
-                        try {
-                          const fd = new FormData(); fd.append("file", f)
-                          const res = await fetch("/api/upload", { method: "POST", body: fd })
-                          if (res.ok) { const d = await res.json(); setCustomHeroUrl(d.url) }
-                        } catch {}
-                        setIsUploadingHero(false)
-                      }} />
-                      <span className="font-mono text-xs text-neutral-500">{isUploadingHero ? "Uploading..." : "Upload or replace"}</span>
-                    </label>
-                  </div>
-                </div>
-              </section>
-
-              {/* v0 Prompt Preview */}
-              <section>
-                <button
-                  onClick={() => setShowPrompt(!showPrompt)}
-                  className="font-mono text-xs text-neutral-500 uppercase tracking-widest hover:text-neutral-900 mb-4 flex items-center gap-2"
-                >
-                  {showPrompt ? "▼" : "▶"} v0 Prompt
-                </button>
-                {showPrompt && (
-                  <pre className="bg-white border border-neutral-300 p-4 font-mono text-xs text-neutral-700 whitespace-pre-wrap overflow-auto max-h-48">
-                    {auditResult.analysis.v0Prompt}
-                  </pre>
-                )}
-              </section>
-
-              {/* All Media */}
-              {auditResult.scraped.images.length > 0 && (
-                <section>
-                  <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-2">
-                    All Media ({auditResult.scraped.images.length} items)
-                  </p>
-                  <p className="font-mono text-[10px] text-neutral-400 mb-4">
-                    Click an image to set as Hero or Logo
-                  </p>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {auditResult.scraped.images.map((img: string, i: number) => {
-                      const classification = auditResult.analysis.allImages?.find((ai: { url: string; type: string }) => ai.url === img)
-                      const isCurrentHero = img === (customHeroUrl || auditResult.analysis.heroImageUrl)
-                      const isCurrentLogo = img === (customLogoUrl || auditResult.analysis.logoUrl)
-                      return (
-                        <div key={i} className="relative group">
-                          <div className={`aspect-square bg-white border overflow-hidden cursor-pointer ${isCurrentHero ? "border-[#2563EB] ring-2 ring-[#2563EB]/30" : isCurrentLogo ? "border-[#D97706] ring-2 ring-[#D97706]/30" : "border-neutral-300"}`}>
-                            <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "" }} />
-                          </div>
-                          {/* Hover actions */}
-                          <div className="absolute inset-0 bg-neutral-900/0 group-hover:bg-neutral-900/80 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                            <button
-                              onClick={() => setCustomHeroUrl(img)}
-                              className="px-2 py-1 bg-white text-neutral-900 font-mono text-[9px] uppercase hover:bg-[#2563EB] hover:text-white transition-colors"
-                            >
-                              Hero
-                            </button>
-                            <button
-                              onClick={() => setCustomLogoUrl(img)}
-                              className="px-2 py-1 bg-white text-neutral-900 font-mono text-[9px] uppercase hover:bg-[#D97706] hover:text-white transition-colors"
-                            >
-                              Logo
-                            </button>
-                          </div>
-                          {/* Labels */}
-                          {isCurrentHero && (
-                            <span className="absolute top-0 left-0 right-0 bg-[#2563EB] text-white font-mono text-[8px] text-center py-0.5 uppercase">Hero</span>
-                          )}
-                          {isCurrentLogo && (
-                            <span className="absolute top-0 left-0 right-0 bg-[#D97706] text-white font-mono text-[8px] text-center py-0.5 uppercase">Logo</span>
-                          )}
-                          {classification && classification.type !== "other" && !isCurrentHero && !isCurrentLogo && (
-                            <span className="absolute bottom-0 left-0 right-0 bg-neutral-900/80 text-white font-mono text-[8px] text-center py-0.5 uppercase">
-                              {classification.type}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </section>
               )}
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* Live Preview */}
-      {demoUrl && (
-        <section className="py-8 border-t border-neutral-300">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest">
-                Live Preview
-              </p>
-              <a
-                href={demoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-xs text-[#2563EB] hover:underline"
+              {/* Try Another */}
+              <button
+                onClick={tryAnother}
+                disabled={isWorking}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
               >
-                Open in new tab ↗
-              </a>
-            </div>
-            <div className="bg-white border border-neutral-300 overflow-hidden">
-              <iframe
-                src={demoUrl}
-                className="w-full h-[700px] border-0"
-                title="Generated site preview"
-              />
-            </div>
-          </div>
-        </section>
-      )}
+                <RefreshCw className="w-3.5 h-3.5" />
+                Try Another
+              </button>
 
-      {/* Features Grid */}
-      <section className="py-16 border-t border-neutral-300">
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-8">
-            Capabilities
-          </p>
-          <div className="grid md:grid-cols-3 gap-6">
-            <FeatureCard
-              number="01"
-              title="Deep Audit"
-              description="Full-stack analysis of HTML, CSS, JavaScript, assets, and accessibility compliance."
-            />
-            <FeatureCard
-              number="02"
-              title="AI Extraction"
-              description="Intelligent component detection and asset categorization powered by vision models."
-            />
-            <FeatureCard
-              number="03"
-              title="Modern Stack"
-              description="Rebuilt with Next.js, TypeScript, and Tailwind CSS. Production-ready from day one."
-            />
+              {/* Push to GitHub */}
+              <button
+                onClick={() => pushToGitHub(projectName || siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")}
+                disabled={isPushing}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border font-mono text-xs ${
+                  githubUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+                } bg-white disabled:opacity-50`}
+              >
+                {isPushing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Github className="w-3.5 h-3.5" />}
+                {githubUrl ? "Pushed" : "Push"}
+              </button>
+
+              {/* Deploy */}
+              <button
+                onClick={() => deployToVercel(projectName || siteMeta?.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project")}
+                disabled={isDeploying || !githubUrl}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border font-mono text-xs ${
+                  deploymentUrl ? "border-[#16A34A] text-[#16A34A]" : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+                } bg-white disabled:opacity-50`}
+              >
+                {isDeploying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                {deploymentUrl ? "Live" : "Deploy"}
+              </button>
+
+              {/* Open in Kiro */}
+              {githubUrl && (
+                <button
+                  onClick={() => {
+                    const name = (projectName || siteMeta?.title || "project").toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-")
+                    const bat = `@echo off\r\ncd /d "%USERPROFILE%\\Desktop\\Projects"\r\nif not exist "${name}" (git clone ${githubUrl}.git) else (cd ${name} & git pull & cd ..)\r\nkiro "${name}"\r\n`
+                    const blob = new Blob([bat], { type: "application/bat" })
+                    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `open-in-kiro.bat`; a.click()
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 hover:bg-neutral-50"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Kiro
+                </button>
+              )}
+
+              <div className="w-px h-5 bg-neutral-300 mx-1" />
+
+              {/* New project */}
+              <button onClick={reset} className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs text-neutral-400 hover:text-neutral-600">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
+
+          {/* Links row */}
+          {(githubUrl || deploymentUrl) && (
+            <div className="flex items-center gap-4 mt-1 pt-1 border-t border-neutral-100">
+              {githubUrl && <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-neutral-400 hover:text-[#2563EB]">{githubUrl}</a>}
+              {deploymentUrl && <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-[#16A34A] hover:underline">{deploymentUrl}</a>}
+            </div>
+          )}
         </div>
-      </section>
 
-      {/* Action Bar */}
-      <ActionBar visible={isComplete} />
+        {/* Full-screen iframe */}
+        <div className="flex-1">
+          <iframe
+            src={activeBuild.demoUrl}
+            className="w-full h-full border-0"
+            title="Preview"
+          />
+        </div>
+      </div>
+    )
+  }
 
-      {isComplete && <div className="h-24" />}
-    </main>
-  )
-}
-
-function FeatureCard({
-  number,
-  title,
-  description,
-}: {
-  number: string
-  title: string
-  description: string
-}) {
+  // Input + scanning/generating mode
   return (
-    <div className="bg-white border border-neutral-300 p-6">
-      <span className="font-mono text-xs text-neutral-400 mb-2 block">{number}</span>
-      <h3 className="font-mono text-lg font-medium text-neutral-900 mb-2">{title}</h3>
-      <p className="font-sans text-sm text-neutral-600 leading-relaxed">{description}</p>
-    </div>
+    <main className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-2xl space-y-8">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3">
+          <img src="/logo.png" alt="RefreshFactory.ai" className="h-10 w-auto" />
+          <span className="font-mono text-lg font-medium tracking-tight text-neutral-900">
+            RefreshFactory.ai
+          </span>
+        </div>
+
+        {/* Tagline */}
+        <p className="text-center font-sans text-neutral-600">
+          Paste a URL. Get a modern rebuild in minutes.
+        </p>
+
+        {/* Input */}
+        <form onSubmit={handleSubmit}>
+          <div className="bg-white border border-neutral-300 p-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-neutral-400 text-sm pl-3 select-none">$&gt;</span>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="barrettqualitybuilders.ca"
+                disabled={isWorking}
+                className="flex-1 bg-transparent font-mono text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none py-3 disabled:opacity-50"
+              />
+              <motion.button
+                type="submit"
+                disabled={!url.trim() || isWorking}
+                whileTap={{ x: 1, y: 1 }}
+                className="px-6 py-2.5 bg-neutral-900 text-white font-mono text-sm uppercase tracking-wider disabled:opacity-30 hover:bg-neutral-800"
+              >
+                {isWorking ? "Working" : "Build"}
+              </motion.button>
+            </div>
+          </div>
+        </form>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-white border border-red-300 p-3">
+            <span className="font-mono text-xs text-red-600">{error}</span>
+          </div>
+        )}
+
+        {/* Log output */}
+        {isWorking && (
+          <div className="bg-white border border-neutral-300 p-4">
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200">
+              <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">
+                {step === "scanning" ? "Scanning" : "Generating"}
+              </span>
+              <Loader2 className="w-3 h-3 text-[#D97706] animate-spin" />
+            </div>
+            <div ref={logRef} className="h-40 overflow-y-auto font-mono text-xs leading-relaxed">
+              {logs.map((log, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex gap-2 mb-1"
+                >
+                  <span className="text-neutral-400 select-none">[{String(i + 1).padStart(2, "0")}]</span>
+                  <span className="text-neutral-700">{log}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
   )
 }

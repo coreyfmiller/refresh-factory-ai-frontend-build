@@ -2,268 +2,182 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AnalysisResult } from "./audit/analyzer";
 
-export type PipelineStep = "idle" | "auditing" | "reviewing" | "generating" | "workspace" | "error";
+export type AppStep = "idle" | "scanning" | "generating" | "preview" | "error";
 
-export interface ScrapedInfo {
-  url: string;
-  title: string;
-  description: string;
-  images: string[];
-  logos: string[];
-  fonts: string[];
-  colors: string[];
-  navLinks: string[];
-  headings: { level: number; text: string }[];
-  heroText: string | null;
-  heroSubtext: string | null;
-  socialLinks: string[];
-  screenshot: string | null;
-}
-
-export interface AuditResult {
-  scraped: ScrapedInfo;
-  analysis: AnalysisResult;
-}
-
-export interface GeneratedFile {
-  name: string;
-  content: string;
+export interface Build {
+  id: string;
+  demoUrl: string;
+  chatId: string;
+  timestamp: number;
 }
 
 export interface ProjectState {
-  // Pipeline state
-  currentStep: PipelineStep;
+  // Flow state
+  step: AppStep;
   error: string | null;
 
-  // Audit data
+  // Input
   targetUrl: string;
-  auditResult: AuditResult | null;
+  siteMeta: { title: string; description: string } | null;
 
-  // Generation
-  customInstructions: string;
-  useScrapedImages: boolean;
-  customLogoUrl: string | null;
-  customHeroUrl: string | null;
-  generatedCode: string | null;
-  generatedFiles: GeneratedFile[];
-  demoUrl: string | null;
-  chatId: string | null;
+  // Builds
+  builds: Build[];
+  activeBuildIndex: number;
 
-  // Deploy state
+  // Deploy
   githubUrl: string | null;
   deploymentUrl: string | null;
+  isPushing: boolean;
   isDeploying: boolean;
-  isPushingToGit: boolean;
-
-  // Edit state
-  editHistory: { message: string; timestamp: number }[];
-  isEditing: boolean;
 
   // Actions
   setTargetUrl: (url: string) => void;
-  startAudit: () => Promise<void>;
-  setCustomInstructions: (instructions: string) => void;
-  setUseScrapedImages: (use: boolean) => void;
-  setCustomLogoUrl: (url: string | null) => void;
-  setCustomHeroUrl: (url: string | null) => void;
-  startGeneration: () => Promise<void>;
-  sendEdit: (message: string) => Promise<void>;
+  startBuild: () => Promise<void>;
+  tryAnother: () => Promise<void>;
+  selectBuild: (index: number) => void;
   pushToGitHub: (projectName: string) => Promise<void>;
   deployToVercel: (projectName: string) => Promise<void>;
-  regenerate: () => void;
   reset: () => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
-      currentStep: "idle",
+      step: "idle",
       error: null,
       targetUrl: "",
-      auditResult: null,
-      customInstructions: "",
-      useScrapedImages: true,
-      customLogoUrl: null,
-      customHeroUrl: null,
-      generatedCode: null,
-      generatedFiles: [],
-      demoUrl: null,
-      chatId: null,
+      siteMeta: null,
+      builds: [],
+      activeBuildIndex: 0,
       githubUrl: null,
       deploymentUrl: null,
+      isPushing: false,
       isDeploying: false,
-      isPushingToGit: false,
-      editHistory: [],
-      isEditing: false,
 
       setTargetUrl: (url) => set({ targetUrl: url }),
 
-      startAudit: async () => {
+      startBuild: async () => {
         const { targetUrl } = get();
         if (!targetUrl) return;
 
-        set({ currentStep: "auditing", error: null });
+        set({ step: "scanning", error: null });
+
+        // Quick metadata fetch (for display theater)
+        try {
+          const metaRes = await fetch("/api/meta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: targetUrl }),
+          });
+          if (metaRes.ok) {
+            const meta = await metaRes.json();
+            set({ siteMeta: meta });
+          }
+        } catch {}
+
+        // Now generate with v0
+        set({ step: "generating" });
 
         try {
-          const response = await fetch("/api/audit", {
+          const res = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url: targetUrl }),
           });
 
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Audit failed");
-          }
-
-          const data = await response.json();
-          set({
-            auditResult: data,
-            currentStep: "reviewing",
-          });
-        } catch (error) {
-          set({
-            currentStep: "error",
-            error: error instanceof Error ? error.message : "Audit failed",
-          });
-        }
-      },
-
-      setCustomInstructions: (instructions) =>
-        set({ customInstructions: instructions }),
-
-      setUseScrapedImages: (use) => set({ useScrapedImages: use }),
-
-      setCustomLogoUrl: (url) => set({ customLogoUrl: url }),
-
-      setCustomHeroUrl: (url) => set({ customHeroUrl: url }),
-
-      startGeneration: async () => {
-        const { auditResult, customInstructions, useScrapedImages, customLogoUrl, customHeroUrl } = get();
-        if (!auditResult) return;
-
-        set({ currentStep: "generating", error: null });
-
-        try {
-          const response = await fetch("/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              v0Prompt: auditResult.analysis.v0Prompt,
-              customInstructions: [
-                customLogoUrl ? `Use this logo: ${customLogoUrl}` : "",
-                customHeroUrl ? `Use this hero image: ${customHeroUrl}` : "",
-                customInstructions,
-              ].filter(Boolean).join(" ") || undefined,
-              skipImages: !useScrapedImages,
-            }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
+          if (!res.ok) {
+            const data = await res.json();
             throw new Error(data.error || "Generation failed");
           }
 
-          const data = await response.json();
-          set({
-            generatedCode: data.generatedCode,
-            generatedFiles: data.files || [],
+          const data = await res.json();
+          const newBuild: Build = {
+            id: data.chatId,
             demoUrl: data.demoUrl,
             chatId: data.chatId,
-            currentStep: "workspace",
-          });
+            timestamp: Date.now(),
+          };
+
+          set((state) => ({
+            builds: [...state.builds, newBuild],
+            activeBuildIndex: state.builds.length,
+            step: "preview",
+          }));
         } catch (error) {
           set({
-            currentStep: "error",
+            step: "error",
             error: error instanceof Error ? error.message : "Generation failed",
           });
         }
       },
 
-      sendEdit: async (message: string) => {
-        const { chatId } = get();
-        if (!chatId) return;
+      tryAnother: async () => {
+        const { targetUrl } = get();
+        if (!targetUrl) return;
 
-        set({ isEditing: true, error: null });
+        set({ step: "generating", error: null });
 
         try {
-          const response = await fetch("/api/edit", {
+          const res = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chatId, message }),
+            body: JSON.stringify({ url: targetUrl }),
           });
 
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Edit failed");
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Generation failed");
           }
 
-          const data = await response.json();
+          const data = await res.json();
+          const newBuild: Build = {
+            id: data.chatId,
+            demoUrl: data.demoUrl,
+            chatId: data.chatId,
+            timestamp: Date.now(),
+          };
+
           set((state) => ({
-            generatedCode: data.generatedCode || state.generatedCode,
-            generatedFiles: data.files || state.generatedFiles,
-            demoUrl: data.demoUrl || state.demoUrl,
-            isEditing: false,
-            editHistory: [
-              ...state.editHistory,
-              { message, timestamp: Date.now() },
-            ],
+            builds: [...state.builds, newBuild],
+            activeBuildIndex: state.builds.length,
+            step: "preview",
           }));
         } catch (error) {
           set({
-            isEditing: false,
-            error: error instanceof Error ? error.message : "Edit failed",
+            step: "error",
+            error: error instanceof Error ? error.message : "Generation failed",
           });
         }
       },
 
-      pushToGitHub: async (projectName: string) => {
-        const { generatedFiles, auditResult, customLogoUrl, customHeroUrl } = get();
-        if (!generatedFiles.length || !auditResult) return;
+      selectBuild: (index) => set({ activeBuildIndex: index }),
 
-        set({ isPushingToGit: true, error: null });
+      pushToGitHub: async (projectName: string) => {
+        const { builds, activeBuildIndex } = get();
+        const build = builds[activeBuildIndex];
+        if (!build) return;
+
+        set({ isPushing: true, error: null });
 
         try {
-          const images = auditResult.scraped.images.map((url) => {
-            const classification = auditResult.analysis.allImages?.find(
-              (ai) => ai.url === url
-            );
-            return {
-              url,
-              type: classification?.type || "other",
-              description: classification?.description || "",
-            };
-          });
-
-          const response = await fetch("/api/github", {
+          const res = await fetch("/api/github", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              projectName,
-              files: generatedFiles,
-              brandName: auditResult.analysis.businessName,
-              images,
-              logoUrl: customLogoUrl || auditResult.analysis.logoUrl || null,
-              heroUrl: customHeroUrl || auditResult.analysis.heroImageUrl || null,
-            }),
+            body: JSON.stringify({ projectName, chatId: build.chatId }),
           });
 
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "GitHub push failed");
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Push failed");
           }
 
-          const data = await response.json();
-          set({
-            githubUrl: data.url,
-            isPushingToGit: false,
-          });
+          const data = await res.json();
+          set({ githubUrl: data.url, isPushing: false });
         } catch (error) {
           set({
-            isPushingToGit: false,
-            error: error instanceof Error ? error.message : "GitHub push failed",
+            isPushing: false,
+            error: error instanceof Error ? error.message : "Push failed",
           });
         }
       },
@@ -275,95 +189,51 @@ export const useProjectStore = create<ProjectState>()(
         set({ isDeploying: true, error: null });
 
         try {
-          const response = await fetch("/api/deploy", {
+          const res = await fetch("/api/deploy", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ projectName, githubUrl }),
           });
 
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Deployment failed");
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || "Deploy failed");
           }
 
-          const data = await response.json();
-          set({
-            deploymentUrl: data.url,
-            isDeploying: false,
-          });
+          const data = await res.json();
+          set({ deploymentUrl: data.url, isDeploying: false });
         } catch (error) {
           set({
             isDeploying: false,
-            error: error instanceof Error ? error.message : "Deployment failed",
+            error: error instanceof Error ? error.message : "Deploy failed",
           });
         }
       },
 
-      regenerate: () =>
-        set({
-          currentStep: "reviewing",
-          error: null,
-          generatedCode: null,
-          generatedFiles: [],
-          demoUrl: null,
-          chatId: null,
-          githubUrl: null,
-          deploymentUrl: null,
-          isDeploying: false,
-          isPushingToGit: false,
-          editHistory: [],
-          isEditing: false,
-        }),
-
       reset: () =>
         set({
-          currentStep: "idle",
+          step: "idle",
           error: null,
           targetUrl: "",
-          auditResult: null,
-          customInstructions: "",
-          useScrapedImages: true,
-          customLogoUrl: null,
-          customHeroUrl: null,
-          generatedCode: null,
-          generatedFiles: [],
-          demoUrl: null,
-          chatId: null,
+          siteMeta: null,
+          builds: [],
+          activeBuildIndex: 0,
           githubUrl: null,
           deploymentUrl: null,
+          isPushing: false,
           isDeploying: false,
-          isPushingToGit: false,
-          editHistory: [],
-          isEditing: false,
         }),
     }),
     {
-      name: "refreshfactory-project",
+      name: "refreshfactory-v2",
       partialize: (state) => ({
-        // Persist everything except transient loading states and the screenshot
-        currentStep: state.currentStep,
+        step: state.step,
         targetUrl: state.targetUrl,
-        auditResult: state.auditResult
-          ? {
-              ...state.auditResult,
-              scraped: {
-                ...state.auditResult.scraped,
-                screenshot: null, // Don't persist screenshot (too large)
-              },
-            }
-          : null,
-        customInstructions: state.customInstructions,
-        useScrapedImages: state.useScrapedImages,
-        customLogoUrl: state.customLogoUrl,
-        customHeroUrl: state.customHeroUrl,
-        generatedCode: state.generatedCode,
-        generatedFiles: state.generatedFiles,
-        demoUrl: state.demoUrl,
-        chatId: state.chatId,
+        siteMeta: state.siteMeta,
+        builds: state.builds,
+        activeBuildIndex: state.activeBuildIndex,
         githubUrl: state.githubUrl,
         deploymentUrl: state.deploymentUrl,
-        editHistory: state.editHistory,
-        error: state.error, // Persist error so it shows after refresh
       }),
     }
   )

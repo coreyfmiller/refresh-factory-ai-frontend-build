@@ -6,53 +6,30 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const { v0Prompt, customInstructions, skipImages } = await request.json();
+    const { url } = await request.json();
 
-    if (!v0Prompt) {
-      return NextResponse.json({ error: "v0Prompt is required" }, { status: 400 });
+    if (!url) {
+      return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    // If skipImages, remove any image URLs from the prompt so v0 uses its own
-    let prompt = v0Prompt;
-    if (skipImages) {
-      prompt = prompt
-        .replace(/Use this logo[^.]*\./gi, "")
-        .replace(/Use this hero image[^.]*\./gi, "")
-        .replace(/Logo:[^\n]*/gi, "")
-        .replace(/Hero image[^\n]*/gi, "")
-        .replace(/https?:\/\/[^\s"')]+\.(jpg|jpeg|png|svg|webp|gif)[^\s"')]*\s*/gi, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
+    const prompt = `Build a modern, professional version of this website: ${url}
 
-    // Append custom instructions if provided
-    const finalPrompt = customInstructions
-      ? `${prompt}\n\nAdditional requirements: ${customInstructions}`
-      : prompt;
+Keep their branding, logo, text content, and business information. Make it look clean, modern, and professional. Use high-quality imagery where appropriate.`;
 
-    console.log("[generate] Sending to v0:", finalPrompt.slice(0, 200) + "...");
+    console.log("[generate] Sending to v0:", url);
 
-    // Create a chat with v0 SDK
-    const chat = await v0.chats.create({
-      message: finalPrompt,
-    });
+    const chat = await v0.chats.create({ message: prompt });
 
     console.log("[generate] Chat created:", chat.id);
 
-    // Extract generated files
-    const files = chat.latestVersion?.files || [];
-    const generatedCode = files
-      .map((file) => `// === ${file.name} ===\n${file.content}`)
-      .join("\n\n");
-
     const demoUrl = chat.latestVersion?.demoUrl || null;
+    const files = chat.latestVersion?.files || [];
 
     return NextResponse.json({
       success: true,
       chatId: chat.id,
       demoUrl,
       files: files.map((f) => ({ name: f.name, content: f.content })),
-      generatedCode: generatedCode || "No code generated",
     });
   } catch (error) {
     console.error("[generate] Error:", error);
