@@ -22,6 +22,7 @@ export interface ProjectState {
   siteMeta: {
     title: string;
     description: string;
+    summary: string;
     headings: string[];
     navLinks: string[];
     phone: string | null;

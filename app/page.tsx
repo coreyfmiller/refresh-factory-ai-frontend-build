@@ -247,10 +247,10 @@ export default function HomePage() {
               {/* Title & Description */}
               <div>
                 <p className="font-mono text-lg text-neutral-900 font-medium">{siteMeta.title || targetUrl}</p>
-                {siteMeta.description && (
-                  <p className="font-sans text-sm text-neutral-600 mt-1 leading-relaxed">{siteMeta.description}</p>
+                {siteMeta.summary && (
+                  <p className="font-sans text-sm text-neutral-700 mt-2 leading-relaxed">{siteMeta.summary}</p>
                 )}
-                <p className="font-mono text-[10px] text-neutral-400 mt-2">{targetUrl}</p>
+                <p className="font-mono text-[10px] text-neutral-400 mt-3">{targetUrl}</p>
               </div>
 
               {/* Key Info Grid */}

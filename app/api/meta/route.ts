@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -112,9 +113,31 @@ export async function POST(request: NextRequest) {
     // Body text excerpt
     const excerpt = bodyText.replace(/\s+/g, " ").trim().slice(0, 500);
 
+    // Generate AI summary
+    let summary = "";
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      const summaryPrompt = `Based on this website content, write a 2-3 sentence summary of what this business does and who they serve. If there's not enough content to determine this, say "Not enough content on this page to determine what this business does."
+
+Title: ${title}
+Description: ${metaDesc}
+Headings: ${headings.join(", ")}
+Content excerpt: ${excerpt}
+
+Respond with ONLY the summary, nothing else.`;
+
+      const result = await model.generateContent(summaryPrompt);
+      summary = result.response.text().trim();
+    } catch (e) {
+      summary = metaDesc || "Could not generate summary.";
+    }
+
     return NextResponse.json({
       title,
       description: metaDesc,
+      summary,
       headings: headings.slice(0, 10),
       navLinks: navLinks.slice(0, 10),
       phone,
