@@ -361,6 +361,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Live Preview */}
+      {demoUrl && (
+        <section className="py-8 border-t border-neutral-300">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest">
+                Live Preview
+              </p>
+              <a
+                href={demoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs text-[#2563EB] hover:underline"
+              >
+                Open in new tab ↗
+              </a>
+            </div>
+            <div className="bg-white border border-neutral-300 overflow-hidden">
+              <iframe
+                src={demoUrl}
+                className="w-full h-[700px] border-0"
+                title="Generated site preview"
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features Grid */}
       <section className="py-16 border-t border-neutral-300">
         <div className="max-w-5xl mx-auto px-6">
