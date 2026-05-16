@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { CommandBar } from "@/components/command-bar"
 import { PipelineVisualization, type PipelineStep } from "@/components/pipeline-visualization"
 import { TypewriterLog } from "@/components/typewriter-log"
-import { ActionBar } from "@/components/action-bar"
+import { NavHeader } from "@/components/nav-header"
 import { useProjectStore } from "@/lib/store"
 
 export default function HomePage() {
@@ -18,6 +19,15 @@ export default function HomePage() {
     startAudit,
     setTargetUrl,
   } = useProjectStore()
+
+  const router = useRouter()
+
+  // Redirect to review page when audit completes
+  useEffect(() => {
+    if (currentStep === "reviewing") {
+      router.push("/review")
+    }
+  }, [currentStep, router])
 
   // Map store state to pipeline steps
   const steps: PipelineStep[] = [
@@ -79,34 +89,10 @@ export default function HomePage() {
   }
 
   const isProcessing = currentStep === "auditing" || currentStep === "generating"
-  const isComplete = currentStep === "workspace" || currentStep === "reviewing"
 
   return (
     <main className="min-h-screen bg-[#F8F9FA]">
-      {/* Header */}
-      <header className="border-b border-neutral-300 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="RefreshFactory.ai" className="h-8 w-auto" />
-              <span className="font-mono text-sm font-medium tracking-tight">
-                RefreshFactory.ai
-              </span>
-            </div>
-            <nav className="flex items-center gap-6">
-              <a href="/test-v0" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Test v0
-              </a>
-              <a href="#" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Docs
-              </a>
-              <a href="#" className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider">
-                Status
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <NavHeader />
 
       {/* Hero Section */}
       <section className="py-16 md:py-24">
@@ -187,11 +173,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Action Bar */}
-      <ActionBar visible={isComplete} />
-
-      {isComplete && <div className="h-24" />}
     </main>
   )
 }

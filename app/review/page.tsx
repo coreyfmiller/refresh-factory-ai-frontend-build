@@ -2,256 +2,285 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import Link from "next/link"
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Trash2, Users, Package, Layers } from "lucide-react"
-
-type MediaCategory = "background" | "product" | "team" | "trash"
-
-interface MediaItem {
-  id: string
-  url: string
-  category: MediaCategory | null
-}
-
-const MOCK_SCRAPED_DATA = {
-  title: "Legacy Corp Inc.",
-  description: "A traditional business website built in 2015 with jQuery and Bootstrap.",
-  fonts: ["Open Sans", "Roboto", "Arial"],
-  colors: ["#1a1a1a", "#ffffff", "#007bff", "#28a745", "#ffc107"],
-  technologies: ["jQuery 3.2.1", "Bootstrap 4.0", "PHP 7.2", "MySQL"],
-}
-
-const MOCK_MEDIA: MediaItem[] = [
-  { id: "1", url: "/placeholder.svg?height=200&width=300", category: null },
-  { id: "2", url: "/placeholder.svg?height=200&width=300", category: null },
-  { id: "3", url: "/placeholder.svg?height=200&width=300", category: null },
-  { id: "4", url: "/placeholder.svg?height=200&width=300", category: null },
-  { id: "5", url: "/placeholder.svg?height=200&width=300", category: null },
-  { id: "6", url: "/placeholder.svg?height=200&width=300", category: null },
-]
-
-const MOCK_PROMPT = `You are a senior frontend developer rebuilding a legacy website.
-
-Source Analysis:
-- Framework: jQuery + Bootstrap
-- Backend: PHP with MySQL database
-- Design: Corporate blue theme, serif headers
-
-Requirements:
-- Convert to Next.js 14 with App Router
-- Use TypeScript and Tailwind CSS
-- Implement responsive design patterns
-- Preserve SEO metadata and URLs
-- Optimize all images for web
-
-Output:
-- Component-based architecture
-- Server-side rendering where beneficial
-- Accessible UI patterns (WCAG 2.1 AA)`
+import { useRouter } from "next/navigation"
+import { NavHeader } from "@/components/nav-header"
+import { useProjectStore } from "@/lib/store"
+import { Eye, Trash2, Upload, Loader2 } from "lucide-react"
 
 export default function ReviewPage() {
-  const [media, setMedia] = useState<MediaItem[]>(MOCK_MEDIA)
-  const [selectedCategory, setSelectedCategory] = useState<MediaCategory | null>(null)
-  const [customInstructions, setCustomInstructions] = useState("")
+  const router = useRouter()
+  const {
+    auditResult,
+    customInstructions,
+    setCustomInstructions,
+    useScrapedImages,
+    setUseScrapedImages,
+    customLogoUrl,
+    setCustomLogoUrl,
+    customHeroUrl,
+    setCustomHeroUrl,
+    startGeneration,
+    currentStep,
+  } = useProjectStore()
 
-  const categoryFilters: { key: MediaCategory; label: string; icon: typeof ImageIcon }[] = [
-    { key: "background", label: "Background", icon: Layers },
-    { key: "product", label: "Product", icon: Package },
-    { key: "team", label: "Team", icon: Users },
-    { key: "trash", label: "Trash", icon: Trash2 },
-  ]
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isUploadingHero, setIsUploadingHero] = useState(false)
+  const [dismissedLogo, setDismissedLogo] = useState(false)
+  const [dismissedHero, setDismissedHero] = useState(false)
 
-  const toggleMediaCategory = (id: string, category: MediaCategory) => {
-    setMedia((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, category: item.category === category ? null : category }
-          : item
-      )
+  if (!auditResult) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA]">
+        <NavHeader />
+        <div className="max-w-5xl mx-auto px-6 py-16 text-center">
+          <p className="font-mono text-sm text-neutral-500">No audit data. Go back and scan a URL first.</p>
+        </div>
+      </div>
     )
   }
 
-  const filteredMedia = selectedCategory
-    ? media.filter((m) => m.category === selectedCategory)
-    : media
+  const { scraped, analysis } = auditResult
+
+  const handleGenerate = async () => {
+    await startGeneration()
+    router.push("/generate")
+  }
+
+  const handleUpload = async (
+    file: File,
+    setUrl: (url: string | null) => void,
+    setLoading: (v: boolean) => void
+  ) => {
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      if (res.ok) {
+        const data = await res.json()
+        setUrl(data.url)
+      }
+    } catch {}
+    setLoading(false)
+  }
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA]">
-      {/* Header */}
-      <header className="border-b border-neutral-300 bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase tracking-wider"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-              <div className="h-4 w-px bg-neutral-300" />
-              <span className="font-mono text-sm font-medium">Asset Review</span>
-            </div>
-            <Link
-              href="/editor/demo"
-              className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] font-mono text-sm text-white hover:bg-[#1d4ed8] active:translate-x-px active:translate-y-px transition-transform"
-            >
-              Continue to Editor
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#F8F9FA]">
+      <NavHeader />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Identity Grid */}
-        <section className="mb-12">
-          <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
-            Identity Analysis
-          </p>
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Raw Scraped Data */}
-            <div className="bg-[#F4F4F5] border border-neutral-300 p-6">
-              <h3 className="font-mono text-xs text-neutral-500 uppercase tracking-wider mb-4 pb-2 border-b border-neutral-300">
-                Raw Scraped Data
-              </h3>
-              <div className="space-y-4 font-mono text-sm">
-                <DataRow label="Title" value={MOCK_SCRAPED_DATA.title} />
-                <DataRow label="Description" value={MOCK_SCRAPED_DATA.description} />
-                <DataRow label="Fonts" value={MOCK_SCRAPED_DATA.fonts.join(", ")} />
-                <div>
-                  <span className="text-neutral-500">Colors:</span>
-                  <div className="flex gap-2 mt-2">
-                    {MOCK_SCRAPED_DATA.colors.map((color) => (
-                      <div
-                        key={color}
-                        className="w-8 h-8 border border-neutral-300"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <DataRow label="Stack" value={MOCK_SCRAPED_DATA.technologies.join(" | ")} />
-              </div>
-            </div>
-
-            {/* AI Reimagined Assets */}
-            <div className="bg-white border border-neutral-300 p-6">
-              <h3 className="font-mono text-xs text-[#2563EB] uppercase tracking-wider mb-4 pb-2 border-b border-neutral-300">
-                AI Reimagined Assets
-              </h3>
-              <div className="space-y-4 font-mono text-sm">
-                <DataRow label="Title" value="Legacy Corp — Modernized" />
-                <DataRow label="Stack" value="Next.js 14 | TypeScript | Tailwind CSS" />
-                <DataRow label="Fonts" value="Inter (UI) | JetBrains Mono (Code)" />
-                <div>
-                  <span className="text-neutral-500">Optimized Colors:</span>
-                  <div className="flex gap-2 mt-2">
-                    {["#171717", "#FFFFFF", "#2563EB", "#16A34A", "#D97706"].map((color) => (
-                      <div
-                        key={color}
-                        className="w-8 h-8 border border-neutral-300 relative"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      >
-                        <span className="absolute -bottom-5 left-0 text-[9px] text-neutral-400">
-                          {color}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="pt-4">
-                  <span className="text-neutral-500">Accessibility:</span>
-                  <span className="ml-2 px-2 py-0.5 bg-[#16A34A] text-white text-xs">
-                    WCAG 2.1 AA
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Media Grid */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest">
-              Media Assets ({media.length} items)
-            </p>
-            <div className="flex items-center gap-2">
-              <motion.button
-                whileTap={{ x: 1, y: 1 }}
-                onClick={() => setSelectedCategory(null)}
-                className={`px-3 py-1.5 border font-mono text-xs uppercase tracking-wider transition-colors ${
-                  selectedCategory === null
-                    ? "bg-neutral-900 text-white border-neutral-900"
-                    : "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
-                }`}
-              >
-                All
-              </motion.button>
-              {categoryFilters.map((cat) => (
-                <motion.button
-                  key={cat.key}
-                  whileTap={{ x: 1, y: 1 }}
-                  onClick={() => setSelectedCategory(selectedCategory === cat.key ? null : cat.key)}
-                  className={`px-3 py-1.5 border font-mono text-xs uppercase tracking-wider transition-colors ${
-                    selectedCategory === cat.key
-                      ? "bg-neutral-900 text-white border-neutral-900"
-                      : "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
-                  }`}
-                >
-                  {cat.label}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {filteredMedia.map((item) => (
-              <MediaCard
-                key={item.id}
-                item={item}
-                onCategorySelect={(category) => toggleMediaCategory(item.id, category)}
-                categoryFilters={categoryFilters}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Prompt Workspace */}
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        {/* Business Identity */}
         <section>
           <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
-            Prompt Workspace
+            Business Identity
+          </p>
+          <div className="bg-white border border-neutral-300 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-mono text-xl font-bold text-neutral-900">
+                {analysis.businessName}
+              </h2>
+              <span className="font-mono text-xs text-neutral-500 uppercase px-2 py-1 border border-neutral-300">
+                {analysis.businessType}
+              </span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 font-mono text-sm">
+              {analysis.tagline && <DataRow label="Tagline" value={analysis.tagline} />}
+              <DataRow label="Headline" value={analysis.headline} />
+              {analysis.subheadline && <DataRow label="Subheadline" value={analysis.subheadline} />}
+              {analysis.phoneNumber && <DataRow label="Phone" value={analysis.phoneNumber} />}
+              {analysis.services?.length > 0 && (
+                <div className="col-span-2">
+                  <span className="text-neutral-500">Services:</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {analysis.services.map((s, i) => (
+                      <span key={i} className="px-2 py-1 bg-neutral-100 border border-neutral-200 text-xs">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Identified Assets */}
+        <section>
+          <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+            Identified Assets
           </p>
           <div className="grid md:grid-cols-2 gap-6">
-            {/* System Prompt */}
-            <div className="bg-[#F4F4F5] border border-neutral-300 p-6">
-              <h3 className="font-mono text-xs text-neutral-500 uppercase tracking-wider mb-4 pb-2 border-b border-neutral-300">
-                System Prompt
-              </h3>
-              <pre className="font-mono text-xs text-neutral-700 whitespace-pre-wrap leading-relaxed overflow-auto max-h-64">
-                {MOCK_PROMPT}
-              </pre>
+            {/* Logo */}
+            <div className="bg-white border border-neutral-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Logo</span>
+                {(analysis.logoUrl && !dismissedLogo) && (
+                  <button onClick={() => setDismissedLogo(true)} className="p-1 hover:bg-neutral-100">
+                    <Trash2 className="w-3.5 h-3.5 text-neutral-400" />
+                  </button>
+                )}
+              </div>
+              {customLogoUrl ? (
+                <div className="relative h-24 bg-neutral-50 border border-neutral-200 flex items-center justify-center p-2">
+                  <img src={customLogoUrl} alt="Custom logo" className="max-h-full max-w-full object-contain" />
+                  <button onClick={() => setCustomLogoUrl(null)} className="absolute top-1 right-1 p-1 bg-white border border-neutral-200 hover:bg-neutral-50">
+                    <Trash2 className="w-3 h-3 text-neutral-400" />
+                  </button>
+                </div>
+              ) : analysis.logoUrl && !dismissedLogo ? (
+                <div className="h-24 bg-neutral-50 border border-neutral-200 flex items-center justify-center p-2">
+                  <img src={analysis.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                </div>
+              ) : (
+                <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
+                  <span className="font-mono text-xs text-neutral-400">No logo</span>
+                </div>
+              )}
+              <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, setCustomLogoUrl, setIsUploadingLogo) }} />
+                <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                <span className="font-mono text-xs text-neutral-500">{isUploadingLogo ? "Uploading..." : "Upload logo"}</span>
+              </label>
+            </div>
+
+            {/* Hero */}
+            <div className="bg-white border border-neutral-300 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider">Hero Image</span>
+                {(analysis.heroImageUrl && !dismissedHero) && (
+                  <button onClick={() => setDismissedHero(true)} className="p-1 hover:bg-neutral-100">
+                    <Trash2 className="w-3.5 h-3.5 text-neutral-400" />
+                  </button>
+                )}
+              </div>
+              {customHeroUrl ? (
+                <div className="relative h-24 bg-neutral-50 border border-neutral-200 overflow-hidden">
+                  <img src={customHeroUrl} alt="Custom hero" className="w-full h-full object-cover" />
+                  <button onClick={() => setCustomHeroUrl(null)} className="absolute top-1 right-1 p-1 bg-white border border-neutral-200 hover:bg-neutral-50">
+                    <Trash2 className="w-3 h-3 text-neutral-400" />
+                  </button>
+                </div>
+              ) : analysis.heroImageUrl && !dismissedHero ? (
+                <div className="h-24 bg-neutral-50 border border-neutral-200 overflow-hidden">
+                  <img src={analysis.heroImageUrl} alt="Hero" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                </div>
+              ) : (
+                <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
+                  <span className="font-mono text-xs text-neutral-400">No hero image</span>
+                </div>
+              )}
+              <label className="mt-3 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-neutral-300 cursor-pointer hover:bg-neutral-50 transition-colors">
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, setCustomHeroUrl, setIsUploadingHero) }} />
+                <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                <span className="font-mono text-xs text-neutral-500">{isUploadingHero ? "Uploading..." : "Upload hero"}</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        {/* All Media */}
+        {scraped.images.length > 0 && (
+          <section>
+            <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+              All Media ({scraped.images.length} items)
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {scraped.images.map((img, i) => {
+                const classification = analysis.allImages?.find((ai) => ai.url === img)
+                return (
+                  <div key={i} className="relative group">
+                    <div className="aspect-square bg-white border border-neutral-300 overflow-hidden">
+                      <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "" }} />
+                    </div>
+                    {classification && classification.type !== "other" && (
+                      <span className="absolute bottom-0 left-0 right-0 bg-neutral-900/80 text-white font-mono text-[8px] text-center py-0.5 uppercase">
+                        {classification.type}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Options */}
+        <section>
+          <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+            Generation Options
+          </p>
+          <div className="bg-white border border-neutral-300 p-6 space-y-6">
+            {/* Image toggle */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setUseScrapedImages(!useScrapedImages)}
+                className={`relative w-10 h-5 rounded-full transition-colors ${useScrapedImages ? "bg-neutral-900" : "bg-neutral-300"}`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${useScrapedImages ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+              <div>
+                <p className="font-mono text-sm text-neutral-900">
+                  {useScrapedImages ? "Use scraped images" : "Let v0 generate images"}
+                </p>
+                <p className="font-mono text-xs text-neutral-500">
+                  {useScrapedImages ? "Pass logo + hero to v0" : "v0 uses its own stock images"}
+                </p>
+              </div>
+            </div>
+
+            {/* v0 Prompt */}
+            <div>
+              <button onClick={() => setShowPrompt(!showPrompt)} className="flex items-center gap-2 font-mono text-xs text-neutral-500 uppercase tracking-wider hover:text-neutral-900">
+                <Eye className="w-3.5 h-3.5" />
+                {showPrompt ? "Hide" : "Preview"} v0 Prompt
+              </button>
+              {showPrompt && (
+                <motion.pre
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-3 p-4 bg-neutral-50 border border-neutral-200 font-mono text-xs text-neutral-700 whitespace-pre-wrap overflow-auto max-h-48"
+                >
+                  {analysis.v0Prompt}
+                </motion.pre>
+              )}
             </div>
 
             {/* Custom Instructions */}
-            <div className="bg-white border border-neutral-300 p-6">
-              <h3 className="font-mono text-xs text-[#2563EB] uppercase tracking-wider mb-4 pb-2 border-b border-neutral-300">
+            <div>
+              <label className="font-mono text-xs text-neutral-500 uppercase tracking-wider block mb-2">
                 Custom Instructions
-              </h3>
+              </label>
               <textarea
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
-                placeholder="Add your custom instructions here..."
-                className="w-full h-56 bg-transparent font-mono text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none resize-none leading-relaxed"
+                placeholder="e.g., Use a dark theme, Make it look more premium..."
+                className="w-full h-24 p-3 bg-neutral-50 border border-neutral-200 font-mono text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
               />
             </div>
           </div>
         </section>
+
+        {/* Generate Button */}
+        <div className="flex justify-end">
+          <motion.button
+            whileTap={{ x: 1, y: 1 }}
+            onClick={handleGenerate}
+            disabled={currentStep === "generating"}
+            className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white font-mono text-sm uppercase tracking-wider hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {currentStep === "generating" ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate with v0"
+            )}
+          </motion.button>
+        </div>
       </div>
-    </main>
+    </div>
   )
 }
 
@@ -261,71 +290,5 @@ function DataRow({ label, value }: { label: string; value: string }) {
       <span className="text-neutral-500">{label}:</span>
       <span className="ml-2 text-neutral-900">{value}</span>
     </div>
-  )
-}
-
-function MediaCard({
-  item,
-  onCategorySelect,
-  categoryFilters,
-}: {
-  item: MediaItem
-  onCategorySelect: (category: MediaCategory) => void
-  categoryFilters: { key: MediaCategory; label: string; icon: typeof ImageIcon }[]
-}) {
-  const [showControls, setShowControls] = useState(false)
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative group"
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
-    >
-      <div className="border border-neutral-300 bg-white overflow-hidden">
-        <div className="aspect-video bg-neutral-100 relative">
-          <img
-            src={item.url}
-            alt="Scraped media"
-            className="w-full h-full object-cover"
-          />
-          {item.category && (
-            <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-neutral-900 text-white font-mono text-[9px] uppercase">
-              {item.category}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {showControls && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.1 }}
-          className="absolute inset-0 bg-neutral-900/80 flex items-center justify-center gap-1 p-2"
-        >
-          {categoryFilters.map((cat) => {
-            const Icon = cat.icon
-            const isSelected = item.category === cat.key
-            return (
-              <motion.button
-                key={cat.key}
-                whileTap={{ x: 1, y: 1 }}
-                onClick={() => onCategorySelect(cat.key)}
-                className={`p-2 transition-colors ${
-                  isSelected
-                    ? "bg-white text-neutral-900"
-                    : "bg-transparent text-white hover:bg-white/20"
-                }`}
-                title={cat.label}
-              >
-                <Icon className="w-4 h-4" />
-              </motion.button>
-            )
-          })}
-        </motion.div>
-      )}
-    </motion.div>
   )
 }
