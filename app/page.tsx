@@ -88,9 +88,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-neutral-900 flex items-center justify-center">
-                <span className="font-mono text-white text-xs font-bold">RF</span>
-              </div>
+              <img src="/logo.png" alt="RefreshFactory.ai" className="h-8 w-auto" />
               <span className="font-mono text-sm font-medium tracking-tight">
                 RefreshFactory.ai
               </span>
