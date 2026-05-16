@@ -21,6 +21,7 @@ export default function HomePage() {
     setCustomLogoUrl,
     customHeroUrl,
     setCustomHeroUrl,
+    reset,
   } = useProjectStore()
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
@@ -170,6 +171,15 @@ export default function HomePage() {
           {/* Audit Results - appears after audit completes */}
           {auditResult && (
             <div className="mt-12 space-y-8">
+              {/* New Audit button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={reset}
+                  className="px-4 py-2 border border-neutral-300 bg-white font-mono text-xs text-neutral-600 uppercase tracking-wider hover:bg-neutral-50 active:translate-x-px active:translate-y-px transition-transform"
+                >
+                  New Audit
+                </button>
+              </div>
               {/* Business Identity */}
               <section>
                 <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
