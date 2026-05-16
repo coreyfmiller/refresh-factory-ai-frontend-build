@@ -159,6 +159,109 @@ export default function HomePage() {
 
           {/* Typewriter Log */}
           <TypewriterLog logs={logs} isActive={isProcessing} />
+
+          {/* Audit Results - appears after audit completes */}
+          {auditResult && (
+            <div className="mt-12 space-y-8">
+              {/* Business Identity */}
+              <section>
+                <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+                  Business Identity
+                </p>
+                <div className="bg-white border border-neutral-300 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-mono text-xl font-bold text-neutral-900">
+                      {auditResult.analysis.businessName}
+                    </h2>
+                    <span className="font-mono text-xs text-neutral-500 uppercase px-2 py-1 border border-neutral-300">
+                      {auditResult.analysis.businessType}
+                    </span>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4 font-mono text-sm">
+                    {auditResult.analysis.tagline && (
+                      <div><span className="text-neutral-500">Tagline:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.tagline}</span></div>
+                    )}
+                    <div><span className="text-neutral-500">Headline:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.headline}</span></div>
+                    {auditResult.analysis.phoneNumber && (
+                      <div><span className="text-neutral-500">Phone:</span> <span className="text-neutral-900 ml-1">{auditResult.analysis.phoneNumber}</span></div>
+                    )}
+                    {auditResult.analysis.services?.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-neutral-500">Services:</span>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {auditResult.analysis.services.map((s: string, i: number) => (
+                            <span key={i} className="px-2 py-1 bg-neutral-100 border border-neutral-200 text-xs">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* Identified Assets */}
+              <section>
+                <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+                  AI-Identified Assets
+                </p>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Logo */}
+                  <div className="bg-white border border-neutral-300 p-4">
+                    <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider block mb-3">Logo</span>
+                    {auditResult.analysis.logoUrl ? (
+                      <div className="h-24 bg-neutral-50 border border-neutral-200 flex items-center justify-center p-3">
+                        <img src={auditResult.analysis.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                      </div>
+                    ) : (
+                      <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
+                        <span className="font-mono text-xs text-neutral-400">No logo identified</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hero */}
+                  <div className="bg-white border border-neutral-300 p-4">
+                    <span className="font-mono text-xs text-neutral-500 uppercase tracking-wider block mb-3">Hero Image</span>
+                    {auditResult.analysis.heroImageUrl ? (
+                      <div className="h-24 bg-neutral-50 border border-neutral-200 overflow-hidden">
+                        <img src={auditResult.analysis.heroImageUrl} alt="Hero" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                      </div>
+                    ) : (
+                      <div className="h-24 bg-neutral-50 border border-dashed border-neutral-300 flex items-center justify-center">
+                        <span className="font-mono text-xs text-neutral-400">No hero image identified</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* All Media */}
+              {auditResult.scraped.images.length > 0 && (
+                <section>
+                  <p className="font-mono text-xs text-neutral-500 uppercase tracking-widest mb-4">
+                    All Media ({auditResult.scraped.images.length} items)
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                    {auditResult.scraped.images.map((img: string, i: number) => {
+                      const classification = auditResult.analysis.allImages?.find((ai: { url: string; type: string }) => ai.url === img)
+                      return (
+                        <div key={i} className="relative">
+                          <div className="aspect-square bg-white border border-neutral-300 overflow-hidden">
+                            <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "" }} />
+                          </div>
+                          {classification && classification.type !== "other" && (
+                            <span className="absolute bottom-0 left-0 right-0 bg-neutral-900/80 text-white font-mono text-[8px] text-center py-0.5 uppercase">
+                              {classification.type}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
