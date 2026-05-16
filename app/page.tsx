@@ -214,9 +214,21 @@ export default function HomePage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-white border border-red-200 p-4 flex items-center justify-between">
-            <span className="font-mono text-xs text-red-600">{error}</span>
-            <button onClick={reset} className="font-mono text-xs text-neutral-500 hover:text-neutral-900 uppercase">Reset</button>
+          <div className="bg-white border border-red-200 p-5 space-y-3">
+            <p className="font-mono text-sm text-neutral-900 font-medium">Generation timed out or failed</p>
+            <p className="font-sans text-xs text-neutral-600">This can happen when the AI takes longer than expected. Your progress is saved — you can try again immediately.</p>
+            <div className="flex items-center gap-3 pt-2">
+              <motion.button
+                whileTap={{ x: 1, y: 1 }}
+                onClick={acceptAndGenerate}
+                className="px-4 py-2 bg-neutral-900 text-white font-mono text-xs uppercase tracking-wider hover:bg-neutral-800"
+              >
+                Try Again
+              </motion.button>
+              <button onClick={reset} className="font-mono text-xs text-neutral-400 hover:text-neutral-600 uppercase tracking-wider">
+                Start Over
+              </button>
+            </div>
           </div>
         )}
 
