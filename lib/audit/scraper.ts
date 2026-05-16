@@ -70,19 +70,18 @@ async function takeScreenshot(url: string): Promise<Buffer | null> {
   }
 }
 
-async function scrapeContent(url: string): Promise<{ html: string; styles: { colors: string[]; fonts: string[] } }> {
+async function scrapeContent(url: string): Promise<{ html: string; styles: { colors: string[]; fonts: string[] }; internalLinks: string[] }> {
   const browserlessKey = process.env.BROWSERLESS_API_KEY;
   if (!browserlessKey) {
-    // Fallback: simple fetch
     const response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
     });
-    return { html: await response.text(), styles: { colors: [], fonts: [] } };
+    return { html: await response.text(), styles: { colors: [], fonts: [] }, internalLinks: [] };
   }
 
-  // Use Browserless /function endpoint to get HTML + computed styles
+  // Use Browserless /function endpoint — scroll page to trigger lazy-loaded images
   const response = await fetch(
     `https://production-sfo.browserless.io/function?token=${browserlessKey}`,
     {
@@ -91,8 +90,24 @@ async function scrapeContent(url: string): Promise<{ html: string; styles: { col
       body: JSON.stringify({
         code: `
           export default async function ({ page }) {
-            await page.goto("${url}", { waitUntil: "networkidle2", timeout: 15000 });
-            await new Promise(r => setTimeout(r, 2000));
+            await page.goto("${url}", { waitUntil: "networkidle2", timeout: 20000 });
+            await new Promise(r => setTimeout(r, 1000));
+
+            // Scroll to bottom to trigger lazy-loaded images
+            await page.evaluate(async () => {
+              const delay = (ms) => new Promise(r => setTimeout(r, ms));
+              const height = document.body.scrollHeight;
+              const step = Math.floor(height / 5);
+              for (let i = 0; i <= height; i += step) {
+                window.scrollTo(0, i);
+                await delay(300);
+              }
+              window.scrollTo(0, 0);
+              await delay(500);
+            });
+
+            // Wait for any newly loaded images
+            await new Promise(r => setTimeout(r, 1500));
 
             const styles = await page.evaluate(() => {
               const colors = new Set();
@@ -125,8 +140,23 @@ async function scrapeContent(url: string): Promise<{ html: string; styles: { col
               };
             });
 
+            // Extract internal links for multi-page scraping
+            const internalLinks = await page.evaluate((baseUrl) => {
+              const links = new Set();
+              const base = new URL(baseUrl);
+              document.querySelectorAll("a[href]").forEach((a) => {
+                try {
+                  const href = new URL(a.getAttribute("href"), baseUrl);
+                  if (href.hostname === base.hostname && href.pathname !== base.pathname && !href.hash) {
+                    links.add(href.href);
+                  }
+                } catch {}
+              });
+              return Array.from(links).slice(0, 5);
+            }, "${url}");
+
             const html = await page.content();
-            return { html, styles, type: "application/json" };
+            return { html, styles, internalLinks, type: "application/json" };
           }
         `,
       }),
@@ -136,7 +166,6 @@ async function scrapeContent(url: string): Promise<{ html: string; styles: { col
   if (!response.ok) {
     const errorText = await response.text();
     console.error("[scraper] Function endpoint failed:", response.status, errorText);
-    // Fallback to simple scrape endpoint
     const scrapeResponse = await fetch(
       `https://production-sfo.browserless.io/scrape?token=${browserlessKey}`,
       {
@@ -151,30 +180,85 @@ async function scrapeContent(url: string): Promise<{ html: string; styles: { col
     );
 
     if (!scrapeResponse.ok) {
-      // Final fallback: plain fetch
       const plainResponse = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
       });
-      return { html: await plainResponse.text(), styles: { colors: [], fonts: [] } };
+      return { html: await plainResponse.text(), styles: { colors: [], fonts: [] }, internalLinks: [] };
     }
 
     const scrapeData = await scrapeResponse.json();
     const html = scrapeData.data?.[0]?.results?.[0]?.html || "";
-    return { html, styles: { colors: [], fonts: [] } };
+    return { html, styles: { colors: [], fonts: [] }, internalLinks: [] };
   }
 
   const data = await response.json();
   return {
     html: data.html || "",
     styles: data.styles || { colors: [], fonts: [] },
+    internalLinks: data.internalLinks || [],
   };
+}
+
+// Scrape additional pages for images only
+async function scrapePageImages(pageUrl: string): Promise<string[]> {
+  const browserlessKey = process.env.BROWSERLESS_API_KEY;
+  if (!browserlessKey) return [];
+
+  try {
+    const response = await fetch(
+      `https://production-sfo.browserless.io/function?token=${browserlessKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: `
+            export default async function ({ page }) {
+              await page.goto("${pageUrl}", { waitUntil: "networkidle2", timeout: 15000 });
+
+              // Scroll to load lazy images
+              await page.evaluate(async () => {
+                const delay = (ms) => new Promise(r => setTimeout(r, ms));
+                const height = document.body.scrollHeight;
+                for (let i = 0; i <= height; i += Math.floor(height / 3)) {
+                  window.scrollTo(0, i);
+                  await delay(200);
+                }
+              });
+              await new Promise(r => setTimeout(r, 1000));
+
+              const images = await page.evaluate(() => {
+                const imgs = new Set();
+                document.querySelectorAll("img").forEach((el) => {
+                  const src = el.src || el.dataset.src || el.dataset.lazySrc;
+                  if (src && !src.includes("data:image/svg") && !src.includes("1x1") && src.startsWith("http")) {
+                    imgs.add(src);
+                  }
+                });
+                document.querySelectorAll("[style*='background']").forEach((el) => {
+                  const match = el.style.backgroundImage?.match(/url\\(['"]?([^'"\\)]+)['"]?\\)/);
+                  if (match && match[1].startsWith("http")) imgs.add(match[1]);
+                });
+                return Array.from(imgs);
+              });
+
+              return { images, type: "application/json" };
+            }
+          `,
+        }),
+      }
+    );
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.images || [];
+  } catch {
+    return [];
+  }
 }
 
 export async function scrapeWebsite(url: string): Promise<ScrapedData> {
   // Run screenshot and content scrape in parallel
-  const [screenshot, { html, styles }] = await Promise.all([
+  const [screenshot, { html, styles, internalLinks }] = await Promise.all([
     takeScreenshot(url),
     scrapeContent(url),
   ]);
@@ -329,6 +413,22 @@ export async function scrapeWebsite(url: string): Promise<ScrapedData> {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 3000);
+
+  // Scrape internal pages for additional images (up to 5 pages)
+  if (internalLinks && internalLinks.length > 0) {
+    console.log(`[scraper] Scraping ${internalLinks.length} internal pages for images...`);
+    const pageImageResults = await Promise.all(
+      internalLinks.slice(0, 5).map((link: string) => scrapePageImages(link))
+    );
+    for (const pageImages of pageImageResults) {
+      for (const img of pageImages) {
+        if (!images.includes(img)) {
+          images.push(img);
+        }
+      }
+    }
+    console.log(`[scraper] Total images after multi-page: ${images.length}`);
+  }
 
   return {
     url,
