@@ -33,6 +33,11 @@ export interface ProjectState {
     socialLinks: string[];
     excerpt: string;
   } | null;
+  curatedImages: {
+    hero: string | null;
+    about: string | null;
+    gallery: string[];
+  } | null;
 
   // Builds
   builds: Build[];
@@ -62,6 +67,7 @@ export const useProjectStore = create<ProjectState>()(
       error: null,
       targetUrl: "",
       siteMeta: null,
+      curatedImages: null,
       builds: [],
       activeBuildIndex: 0,
       githubUrl: null,
@@ -75,18 +81,31 @@ export const useProjectStore = create<ProjectState>()(
         const { targetUrl } = get();
         if (!targetUrl) return;
 
-        set({ step: "scanning", error: null, siteMeta: null });
+        set({ step: "scanning", error: null, siteMeta: null, curatedImages: null });
 
-        // Quick metadata fetch (for display)
+        // Fetch metadata and scrape images in parallel
         try {
-          const metaRes = await fetch("/api/meta", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: targetUrl }),
-          });
+          const [metaRes, scrapeRes] = await Promise.all([
+            fetch("/api/meta", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: targetUrl }),
+            }),
+            fetch("/api/scrape-and-select", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: targetUrl }),
+            }),
+          ]);
+
           if (metaRes.ok) {
             const meta = await metaRes.json();
             set({ siteMeta: meta });
+          }
+
+          if (scrapeRes.ok) {
+            const scrapeData = await scrapeRes.json();
+            set({ curatedImages: scrapeData.uploaded });
           }
         } catch {}
 
@@ -95,7 +114,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       acceptAndGenerate: async () => {
-        const { targetUrl } = get();
+        const { targetUrl, curatedImages } = get();
         if (!targetUrl) return;
 
         set({ step: "generating", error: null });
@@ -104,7 +123,7 @@ export const useProjectStore = create<ProjectState>()(
           const res = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: targetUrl }),
+            body: JSON.stringify({ url: targetUrl, images: curatedImages }),
           });
 
           if (!res.ok) {
@@ -237,6 +256,7 @@ export const useProjectStore = create<ProjectState>()(
           error: null,
           targetUrl: "",
           siteMeta: null,
+          curatedImages: null,
           builds: [],
           activeBuildIndex: 0,
           githubUrl: null,

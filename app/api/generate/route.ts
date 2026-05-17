@@ -13,10 +13,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    const { url } = body;
+    const { url, images } = body;
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    }
+
+    // Build image instructions if curated images are provided
+    let imageInstructions = "";
+    if (images) {
+      const parts: string[] = [];
+      if (images.hero) parts.push(`- Use this image as the hero/banner: ${images.hero}`);
+      if (images.about) parts.push(`- Use this image in the About section (owner/team photo): ${images.about}`);
+      if (images.gallery?.length > 0) {
+        parts.push(`- Use these images in a gallery/portfolio section:\n${images.gallery.map((u: string) => `  ${u}`).join("\n")}`);
+      }
+      if (parts.length > 0) {
+        imageInstructions = `\n\nSpecific images to use:\n${parts.join("\n")}`;
+      }
     }
 
     const prompt = `Build a modern, premium redesign of this website: ${url}
@@ -32,7 +46,7 @@ Rules:
 - Mobile-responsive
 - Professional color palette that elevates their brand
 - Include clear call-to-action buttons
-- Footer with contact info and links`;
+- Footer with contact info and links${imageInstructions}`;
 
     console.log("[generate] Sending to v0:", url);
 
