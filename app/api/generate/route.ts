@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const prompt = `Build a modern, professional version of this website: ${url}
 
-Keep their branding, logo, text content, and business information. Make it look clean, modern, and professional. Use their own imagery where appropriate. Use a fixed header with a solid background color that matches the site's color scheme — not transparent. The header should always show the logo and navigation links. If the business has multiple project or work photos, use a hero image carousel to showcase them.`;
+Keep their branding, text content, and business information. Make it look clean, modern, and professional. Use their own imagery where appropriate. Use the business name as text in the header instead of a logo image. Use a fixed header with a solid background color that matches the site's color scheme — not transparent. The header should always show the business name and navigation links. If the business has multiple project or work photos, use a hero image carousel to showcase them.`;
 
     console.log("[generate] Sending to v0:", url);
 
