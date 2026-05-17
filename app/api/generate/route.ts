@@ -19,9 +19,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    const prompt = `Build a modern, professional version of this website: ${url}
+    const prompt = `Build a modern, premium redesign of this website: ${url}
 
-Keep their branding, text content, and business information. Make it look clean, modern, and professional. Use their own imagery where appropriate. Use the business name as text in the header instead of a logo image. Use a fixed header with a solid background color that matches the site's color scheme — not transparent. The header should always show the business name and navigation links. If the business has multiple project or work photos, use a hero image carousel to showcase them.`;
+Rules:
+- Use the business name as styled text in the header (no logo image)
+- Fixed header with solid background color, always visible
+- Hero section with a full-width image carousel if they have project photos
+- Keep ALL their real text content, services, phone number, and business info
+- Use their actual images from the site
+- Modern typography with clear hierarchy
+- Generous whitespace and clean sections
+- Mobile-responsive
+- Professional color palette that elevates their brand
+- Include clear call-to-action buttons
+- Footer with contact info and links`;
 
     console.log("[generate] Sending to v0:", url);
 
