@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Loader2, Download, Image as ImageIcon } from "lucide-react"
 
 interface ScrapeResult {
-  images: string[];
+  images: { url: string; context: string; nearText: string; page: string }[];
   logos: string[];
   title: string;
 }
@@ -122,16 +122,29 @@ export default function ScrapePage() {
                 <div key={i} className="relative group">
                   <div className="aspect-square bg-[#141416] border border-[#27272A] rounded overflow-hidden">
                     <img
-                      src={img}
+                      src={img.url}
                       alt=""
                       className="w-full h-full object-cover"
                       onError={(e) => { (e.target as HTMLImageElement).src = "" }}
                     />
                   </div>
-                  <div className="absolute inset-0 bg-[#0B1120]/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <a href={img} target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] text-[#3B82F6]">
-                      Open
-                    </a>
+                  {/* Context badge */}
+                  {img.context !== "unknown" && (
+                    <span className={`absolute top-1 left-1 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider rounded ${
+                      img.context === "hero" ? "bg-[#3B82F6]/80 text-white" :
+                      img.context === "about" ? "bg-[#8B5CF6]/80 text-white" :
+                      img.context === "gallery" ? "bg-[#10B981]/80 text-white" :
+                      img.context === "services" ? "bg-[#F59E0B]/80 text-black" :
+                      img.context === "header" ? "bg-[#EF4444]/80 text-white" :
+                      "bg-[#52525B]/80 text-white"
+                    }`}>
+                      {img.context}
+                    </span>
+                  )}
+                  {/* Hover info */}
+                  <div className="absolute inset-0 bg-[#0B1120]/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-center">
+                    {img.nearText && <span className="font-mono text-[8px] text-[#A1A1AA] mb-1 line-clamp-2">{img.nearText}</span>}
+                    <a href={img.url} target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] text-[#3B82F6]">Open</a>
                   </div>
                 </div>
               ))}
