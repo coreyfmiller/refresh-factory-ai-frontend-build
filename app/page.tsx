@@ -133,6 +133,15 @@ export default function HomePage() {
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              <button onClick={() => {
+                if (activeBuild) {
+                  const shareUrl = `${window.location.origin}/preview/${activeBuild.id}`
+                  navigator.clipboard.writeText(shareUrl)
+                  alert("Preview link copied!")
+                }
+              }} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#3B82F6]/50 font-mono text-[10px] text-[#3B82F6] hover:bg-[#3B82F6]/10 transition-all uppercase tracking-wider">
+                Share
+              </button>
               <button onClick={tryAnother} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#27272A] font-mono text-[10px] text-[#A1A1AA] hover:text-white hover:border-[#3B82F6]/50 transition-all uppercase tracking-wider">
                 <RefreshCw className="w-3 h-3" /> Rebuild
               </button>
