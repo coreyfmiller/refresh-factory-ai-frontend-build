@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const prompt = `Build a modern, professional version of this website: ${url}
 
-Keep their branding, logo, text content, and business information. Make it look clean, modern, and professional. Use high-quality imagery where appropriate.`;
+Keep their branding, logo, text content, and business information. Make it look clean, modern, and professional. Use high-quality imagery where appropriate. Use a sticky/fixed header that stays visible when scrolling.`;
 
     console.log("[generate] Sending to v0:", url);
 
