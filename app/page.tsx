@@ -115,8 +115,8 @@ export default function HomePage() {
   // ===== PREVIEW =====
   if (step === "preview" && activeBuild) {
     return (
-      <div className="h-screen flex flex-col bg-[#0A0A0B]">
-        <div className="flex-shrink-0 border-b border-[#27272A] bg-[#0A0A0B] px-4 py-2">
+      <div className="h-screen flex flex-col bg-[#0B1120]">
+        <div className="flex-shrink-0 border-b border-[#27272A] bg-[#0B1120] px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="RF" className="h-5 w-auto cursor-pointer opacity-70 hover:opacity-100 transition-opacity" onClick={reset} />
@@ -171,7 +171,7 @@ export default function HomePage() {
 
   // ===== MAIN FLOW =====
   return (
-    <main className="min-h-screen bg-[#0A0A0B] flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
+    <main className="min-h-screen bg-[#0B1120] flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
       {/* Subtle gradient background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.04),transparent_70%)]" />
@@ -262,25 +262,25 @@ export default function HomePage() {
               {/* Data grid */}
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#27272A]">
                 {siteMeta.phone && (
-                  <div className="bg-[#0A0A0B] rounded p-3">
+                  <div className="bg-[#0B1120] rounded p-3">
                     <span className="font-mono text-[9px] text-[#52525B] uppercase tracking-widest block mb-1">Phone</span>
                     <span className="font-mono text-xs text-white">{siteMeta.phone}</span>
                   </div>
                 )}
                 {siteMeta.email && (
-                  <div className="bg-[#0A0A0B] rounded p-3">
+                  <div className="bg-[#0B1120] rounded p-3">
                     <span className="font-mono text-[9px] text-[#52525B] uppercase tracking-widest block mb-1">Email</span>
                     <span className="font-mono text-xs text-white">{siteMeta.email}</span>
                   </div>
                 )}
                 {(siteMeta.imageCount ?? 0) > 0 && (
-                  <div className="bg-[#0A0A0B] rounded p-3">
+                  <div className="bg-[#0B1120] rounded p-3">
                     <span className="font-mono text-[9px] text-[#52525B] uppercase tracking-widest block mb-1">Images</span>
                     <span className="font-mono text-xs text-white">{siteMeta.imageCount}</span>
                   </div>
                 )}
                 {(siteMeta.navLinks?.length ?? 0) > 0 && (
-                  <div className="bg-[#0A0A0B] rounded p-3">
+                  <div className="bg-[#0B1120] rounded p-3">
                     <span className="font-mono text-[9px] text-[#52525B] uppercase tracking-widest block mb-1">Pages</span>
                     <span className="font-mono text-xs text-white">{siteMeta.navLinks.length}</span>
                   </div>
@@ -293,7 +293,7 @@ export default function HomePage() {
                   <span className="font-mono text-[9px] text-[#52525B] uppercase tracking-widest block mb-2">Navigation</span>
                   <div className="flex flex-wrap gap-1.5">
                     {siteMeta.navLinks.map((link, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-[#0A0A0B] border border-[#27272A] rounded font-mono text-[10px] text-[#A1A1AA]">{link}</span>
+                      <span key={i} className="px-2 py-0.5 bg-[#0B1120] border border-[#27272A] rounded font-mono text-[10px] text-[#A1A1AA]">{link}</span>
                     ))}
                   </div>
                 </div>
@@ -351,7 +351,7 @@ export default function HomePage() {
             </div>
 
             {/* Terminal log */}
-            <div className="bg-[#0A0A0B] border border-[#27272A] rounded-lg p-3">
+            <div className="bg-[#0B1120] border border-[#27272A] rounded-lg p-3">
               <div ref={logRef} className="h-20 overflow-y-auto font-mono text-[10px] leading-relaxed">
                 {logs.map((log, i) => (
                   <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[#52525B] mb-0.5">
