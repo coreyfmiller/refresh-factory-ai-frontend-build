@@ -84,9 +84,16 @@ export default function HomePage() {
   const logRef = useRef<HTMLDivElement>(null)
   const activeBuild = builds[activeBuildIndex]
 
+  // Auto-reset stale states on page load
   useEffect(() => {
-    if (step !== "idle" && step !== "preview" && !targetUrl) reset()
-  }, [step, targetUrl, reset])
+    if (step === "scanning" || step === "generating" || step === "error") {
+      reset()
+    } else if (step === "summary" && !siteMeta) {
+      reset()
+    } else if (step !== "idle" && step !== "preview" && step !== "summary" && !targetUrl) {
+      reset()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (step === "scanning" || step === "generating") {
